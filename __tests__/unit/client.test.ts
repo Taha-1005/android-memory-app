@@ -46,6 +46,22 @@ describe('callClaudeAPI', () => {
     ).rejects.toThrow(/API 401/);
   });
 
+  it('sends the configured model and max_tokens in the request body', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(
+      jsonResponse({ content: [{ type: 'text', text: 'ok' }] }),
+    );
+    await callClaudeAPI('hi', {
+      apiKey: 'k',
+      model: 'custom-model',
+      maxTokens: 42,
+      fetchImpl,
+      timeoutMs: 5000,
+    });
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.model).toBe('custom-model');
+    expect(body.max_tokens).toBe(42);
+  });
+
   it('times out when fetch never resolves (even if abort is ignored)', async () => {
     // This mirrors the real-world bug the spec calls out: some RN network
     // layers silently drop AbortController.abort(). The Promise.race timeout

@@ -4,7 +4,7 @@
  * repositories can stay framework-agnostic and be unit-tested against
  * an in-memory shim.
  */
-import { ALL_STATEMENTS } from './schema';
+import { ALL_STATEMENTS, SCHEMA_VERSION } from './schema';
 
 export interface SqlRow {
   [key: string]: unknown;
@@ -45,8 +45,23 @@ export async function initDb(): Promise<SqlDb> {
   for (const stmt of ALL_STATEMENTS) {
     await db.execAsync(stmt);
   }
+  // Record the schema version so future migrations know where to start.
+  // Using INSERT OR IGNORE keeps the very first writer wins and avoids
+  // clobbering a higher version that a later build might have written.
+  await db.runAsync(
+    `INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?);`,
+    ['schema_version', String(SCHEMA_VERSION)],
+  );
   _db = db;
   return db;
+}
+
+export async function getSchemaVersion(db: SqlDb): Promise<number> {
+  const row = await db.getFirstAsync<{ value: string }>(
+    `SELECT value FROM meta WHERE key = ?;`,
+    ['schema_version'],
+  );
+  return row ? Number(row.value) : 0;
 }
 
 export function resetDbForTests(): void {

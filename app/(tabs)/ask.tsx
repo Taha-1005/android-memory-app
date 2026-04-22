@@ -19,6 +19,7 @@ import { runQuery } from '../../src/llm/query';
 import { getApiKey, getModel } from '../../src/secure/apiKey';
 import { QueryResult } from '../../src/domain/types';
 import { fileAnswerAsPage } from '../../src/services/ingestPipeline';
+import { slugify } from '../../src/domain/slugify';
 
 export default function AskScreen(): JSX.Element {
   const router = useRouter();
@@ -119,7 +120,7 @@ export default function AskScreen(): JSX.Element {
                 {result.cited.map((c) => (
                   <Pressable
                     key={c}
-                    onPress={() => router.push(`/page/${c.toLowerCase().replace(/\s+/g, '-')}`)}
+                    onPress={() => router.push(`/page/${slugify(c)}`)}
                     style={styles.pill}
                   >
                     <Text style={styles.pillText}>{c}</Text>

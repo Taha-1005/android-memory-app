@@ -1,3 +1,5 @@
+import { assertOnline } from '../utils/network';
+
 export interface AnthropicClientOptions {
   apiKey: string;
   model?: string;
@@ -5,6 +7,8 @@ export interface AnthropicClientOptions {
   timeoutMs?: number;
   signal?: AbortSignal;
   fetchImpl?: typeof fetch;
+  /** Skip the offline pre-check — tests with a mocked fetch pass this. */
+  skipConnectivityCheck?: boolean;
 }
 
 export interface AnthropicResponseBlock {
@@ -37,11 +41,17 @@ export async function callClaudeAPI(
     timeoutMs = 45000,
     signal,
     fetchImpl,
+    skipConnectivityCheck,
   } = opts;
   if (!apiKey) throw new Error('No API key configured.');
 
   const doFetch: typeof fetch = fetchImpl ?? (globalThis.fetch as typeof fetch);
   if (!doFetch) throw new Error('No fetch implementation available.');
+  if (!skipConnectivityCheck && !fetchImpl) {
+    // Only pre-check when using the real global fetch — tests supply their
+    // own fetchImpl and shouldn't pay the netinfo tax.
+    await assertOnline();
+  }
 
   const controller = new AbortController();
   const abortListener = () => {
@@ -102,15 +112,19 @@ export async function callClaudeAPI(
 
 export async function probeApiKey(
   apiKey: string,
-  fetchImpl?: typeof fetch,
+  opts: { model?: string; fetchImpl?: typeof fetch } = {},
 ): Promise<{ ok: true } | { ok: false; status?: number; message: string }> {
   try {
+    // Use the default Sonnet model rather than Haiku — every paid Anthropic
+    // key has Sonnet access, while some plans don't enable Haiku. Probing
+    // with a model the user can't call produces a confusing 404 and blocks
+    // onboarding even though the key itself is fine.
     const { text } = await callClaudeAPI('Reply with exactly: OK', {
       apiKey,
-      model: 'claude-haiku-4-5-20251001',
-      maxTokens: 5,
+      model: opts.model ?? 'claude-sonnet-4-20250514',
+      maxTokens: 10,
       timeoutMs: 15_000,
-      fetchImpl,
+      fetchImpl: opts.fetchImpl,
     });
     return text.trim().length > 0 ? { ok: true } : { ok: false, message: 'Empty response.' };
   } catch (e) {
