@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,9 +10,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ErrorBanner } from '../../src/components/ErrorBanner';
 import { processSource, saveSource } from '../../src/services/ingestPipeline';
+import { getApiKey } from '../../src/secure/apiKey';
 
 export default function AddScreen(): JSX.Element {
   const router = useRouter();
@@ -23,6 +24,17 @@ export default function AddScreen(): JSX.Element {
   const [autoProcess, setAutoProcess] = useState(true);
   const [status, setStatus] = useState<null | 'saving' | 'processing' | 'saved'>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasKey, setHasKey] = useState<boolean>(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      void getApiKey().then((k) => setHasKey(!!k));
+    }, []),
+  );
+  useEffect(() => {
+    if (!hasKey && autoProcess) setAutoProcess(false);
+    // We intentionally only force off — user can re-enable after adding a key.
+  }, [hasKey, autoProcess]);
 
   const urlValid = /^https?:\/\//i.test(url);
   const canSave =
@@ -125,9 +137,26 @@ export default function AddScreen(): JSX.Element {
         )}
 
         <View style={styles.switchRow}>
-          <Switch value={autoProcess} onValueChange={setAutoProcess} />
+          <Switch
+            value={autoProcess}
+            onValueChange={setAutoProcess}
+            disabled={!hasKey}
+          />
           <Text style={styles.switchLabel}>Process with Claude immediately</Text>
         </View>
+
+        {!hasKey ? (
+          <Pressable
+            onPress={() => router.push('/settings')}
+            style={styles.keyBanner}
+            accessibilityRole="button"
+          >
+            <Text style={styles.keyBannerText}>
+              Add your API key in Settings to enable Claude-powered features.
+              You can still save sources for later.
+            </Text>
+          </Pressable>
+        ) : null}
 
         <ErrorBanner message={error} />
 
@@ -185,4 +214,13 @@ const styles = StyleSheet.create({
   },
   primaryDisabled: { backgroundColor: '#93c5fd' },
   primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  keyBanner: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#fde68a',
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  keyBannerText: { color: '#92400e', fontSize: 13, lineHeight: 18 },
 });

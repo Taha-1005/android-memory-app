@@ -16,7 +16,7 @@ import { clearApiKey, getApiKey, getModel, maskKey, setApiKey, setModel } from '
 import { probeApiKey } from '../src/llm/client';
 import { applyImport, buildExport, parseImport } from '../src/services/exportImport';
 import { getDb } from '../src/db/client';
-import { listPages, deletePage, upsertPage } from '../src/db/repositories/pages';
+import { listPages, deletePage, upsertPage, getPage } from '../src/db/repositories/pages';
 import { computeLint } from '../src/domain/lint';
 import { WikiPage } from '../src/domain/types';
 import { runMerge } from '../src/llm/merge';
@@ -122,22 +122,24 @@ export default function SettingsScreen(): JSX.Element {
     if (group.length < 2) return;
     setBusy(true);
     try {
-      const [a, b] = group;
-      const merged = await runMerge(a, b, { apiKey: key, model });
       const db = getDb();
-      const existing = await (await import('../src/db/repositories/pages')).getPage(
-        db,
-        slugify(merged.title),
-      );
-      const page = mergePage(existing, merged, null);
-      await upsertPage(db, page);
-      // Remove the loser (the one whose slug differs from the merged target)
-      for (const p of group) {
-        if (p.slug !== page.slug) {
-          await deletePage(db, p.slug);
-        }
+      // Iteratively fold the group down to a single page: merge(a, b) -> ab,
+      // then merge(ab, c) -> abc, and so on. A group of 2 reduces to one call;
+      // a group of N reduces to N-1 calls. This prevents data loss when the
+      // same topic has three or more duplicate pages.
+      let current: WikiPage = group[0];
+      for (let i = 1; i < group.length; i++) {
+        const incoming = await runMerge(current, group[i], { apiKey: key, model });
+        // Re-read in case a concurrent edit landed on the target slug.
+        const existing = await getPage(db, slugify(incoming.title));
+        current = mergePage(existing, incoming, null);
+        await upsertPage(db, current);
       }
-      setStatus(`Merged into ${page.title}.`);
+      // Delete any original group member whose slug is not the final merged slug.
+      for (const p of group) {
+        if (p.slug !== current.slug) await deletePage(db, p.slug);
+      }
+      setStatus(`Merged ${group.length} pages into ${current.title}.`);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

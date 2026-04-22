@@ -17,6 +17,7 @@ export function createMemDb(): SqlDb {
   const tables: Record<string, Row[]> = {
     pages: [],
     source_log: [],
+    meta: [],
   };
 
   function runAsync(sql: string, params: unknown[] = []): Promise<{ changes: number }> {
@@ -91,6 +92,14 @@ export function createMemDb(): SqlDb {
       return Promise.resolve({ changes: before - tables.source_log.length });
     }
 
+    if (/^INSERT OR IGNORE INTO meta/i.test(s)) {
+      const [key, value] = params as [string, string];
+      if (!tables.meta.some((r) => r.key === key)) {
+        tables.meta.push({ key, value });
+      }
+      return Promise.resolve({ changes: 1 });
+    }
+
     throw new Error(`memDb: unsupported runAsync query: ${s}`);
   }
 
@@ -144,6 +153,10 @@ export function createMemDb(): SqlDb {
     }
     if (/^SELECT COUNT\(\*\) AS c FROM pages/i.test(s)) {
       return ({ c: tables.pages.length } as unknown) as T;
+    }
+    if (/^SELECT value FROM meta WHERE key = \?/i.test(s)) {
+      const row = tables.meta.find((r) => r.key === params[0]);
+      return row ? ({ value: row.value } as unknown as T) : null;
     }
     throw new Error(`memDb: unsupported getFirstAsync query: ${s}`);
   }

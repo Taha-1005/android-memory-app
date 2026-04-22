@@ -67,13 +67,11 @@ export async function processSource(logId: string): Promise<number> {
     const sourcePage = incoming.find((p) => p.kind === 'source');
     const sourceSlug = sourcePage ? slugify(sourcePage.title) : row.slug;
 
-    let created = 0;
     for (const p of incoming) {
       const slug = slugify(p.title);
       const existing = await getPage(db, slug);
       const merged = mergePage(existing, p, sourceSlug);
       await upsertPage(db, merged);
-      if (!existing) created += 1;
     }
 
     await updateLog(db, logId, {
