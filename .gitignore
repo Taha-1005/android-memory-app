@@ -10,3 +10,4 @@ ios/
 .env
 .env.local
 coverage/
+.claude/*
