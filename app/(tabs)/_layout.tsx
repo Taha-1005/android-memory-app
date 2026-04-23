@@ -3,7 +3,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
 import { Plus, BookOpen, MessageCircle, List, Wrench } from 'lucide-react-native';
 
-export default function TabsLayout(): JSX.Element {
+export default function TabsLayout(): React.JSX.Element {
   const router = useRouter();
   const settingsButton = () => (
     <Pressable

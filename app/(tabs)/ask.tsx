@@ -21,7 +21,7 @@ import { QueryResult } from '../../src/domain/types';
 import { fileAnswerAsPage } from '../../src/services/ingestPipeline';
 import { slugify } from '../../src/domain/slugify';
 
-export default function AskScreen(): JSX.Element {
+export default function AskScreen(): React.JSX.Element {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);

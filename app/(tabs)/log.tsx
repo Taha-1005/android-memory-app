@@ -21,7 +21,7 @@ import { deletePage } from '../../src/db/repositories/pages';
 import { formatRelative } from '../../src/utils/time';
 import { processSource } from '../../src/services/ingestPipeline';
 
-export default function LogScreen(): JSX.Element {
+export default function LogScreen(): React.JSX.Element {
   const [items, setItems] = useState<SourceLogEntry[]>([]);
 
   const load = useCallback(async () => {

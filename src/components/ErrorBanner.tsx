@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-export function ErrorBanner({ message }: { message: string | null }): JSX.Element | null {
+export function ErrorBanner({ message }: { message: string | null }): React.JSX.Element | null {
   if (!message) return null;
   return (
     <View style={styles.wrap} accessibilityRole="alert">

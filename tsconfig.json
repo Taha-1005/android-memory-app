@@ -9,11 +9,23 @@
     "jsx": "react-native",
     "target": "ES2020",
     "module": "ESNext",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
