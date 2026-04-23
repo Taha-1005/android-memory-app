@@ -4,7 +4,7 @@
  * Only runs when INTEGRATION=1 is set (see jest.config.js).
  * It's bounded to THREE calls total across the full app surface:
  *   1. Key probe (Haiku, max_tokens=5)
- *   2. One ingest (Haiku, max_tokens=400, ~40 words of input)
+ *   2. One ingest (Haiku, max_tokens=800, ~40 words of input)
  *   3. One query   (Haiku, max_tokens=200, single tiny page in context)
  *
  * We use the cheapest Claude model (haiku-4-5) and keep both input and
@@ -26,7 +26,7 @@ describeIfKey('Anthropic API live smoke test (minimal cost)', () => {
   jest.setTimeout(30_000);
 
   it('probes the API key successfully', async () => {
-    const r = await probeApiKey(apiKey!);
+    const r = await probeApiKey(apiKey!, { model: MODEL });
     expect(r.ok).toBe(true);
   });
 
@@ -38,7 +38,7 @@ describeIfKey('Anthropic API live smoke test (minimal cost)', () => {
         content: 'Octopuses are cephalopods with three hearts.',
         url: null,
       },
-      { apiKey: apiKey!, model: MODEL, maxTokens: 400, timeoutMs: 25_000 },
+      { apiKey: apiKey!, model: MODEL, maxTokens: 800, timeoutMs: 25_000 },
     );
     expect(pages.length).toBeGreaterThan(0);
     expect(pages.length).toBeLessThan(7);
