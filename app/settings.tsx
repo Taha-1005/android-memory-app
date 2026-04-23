@@ -27,7 +27,7 @@ export default function SettingsScreen(): React.JSX.Element {
   const router = useRouter();
   const [key, setKey] = useState<string | null>(null);
   const [newKey, setNewKey] = useState('');
-  const [model, setModelLocal] = useState('claude-sonnet-4-20250514');
+  const [model, setModelLocal] = useState('claude-sonnet-4-6');
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -197,7 +197,7 @@ export default function SettingsScreen(): React.JSX.Element {
         autoCapitalize="none"
         style={styles.input}
       />
-      <Text style={styles.hint}>Defaults to claude-sonnet-4-20250514.</Text>
+      <Text style={styles.hint}>Defaults to claude-sonnet-4-6.</Text>
 
       <Text style={styles.h1}>Export / Import</Text>
       <Pressable onPress={onExport} style={styles.exportCard}>
