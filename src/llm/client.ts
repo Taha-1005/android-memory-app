@@ -36,7 +36,7 @@ export async function callClaudeAPI(
 ): Promise<{ text: string; raw: AnthropicResponse }> {
   const {
     apiKey,
-    model = 'claude-sonnet-4-20250514',
+    model = 'claude-sonnet-4-6',
     maxTokens = 1000,
     timeoutMs = 45000,
     signal,
@@ -121,7 +121,7 @@ export async function probeApiKey(
     // onboarding even though the key itself is fine.
     const { text } = await callClaudeAPI('Reply with exactly: OK', {
       apiKey,
-      model: opts.model ?? 'claude-sonnet-4-20250514',
+      model: opts.model ?? 'claude-sonnet-4-6',
       maxTokens: 10,
       timeoutMs: 15_000,
       fetchImpl: opts.fetchImpl,

@@ -40,7 +40,7 @@ export async function clearApiKey(): Promise<void> {
 
 export async function getModel(): Promise<string> {
   const s = await store();
-  return (await s.getItemAsync(MODEL_NAME)) ?? 'claude-sonnet-4-20250514';
+  return (await s.getItemAsync(MODEL_NAME)) ?? 'claude-sonnet-4-6';
 }
 
 export async function setModel(model: string): Promise<void> {
