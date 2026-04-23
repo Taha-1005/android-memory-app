@@ -14,7 +14,7 @@ import { ErrorBanner } from '../src/components/ErrorBanner';
 import { setApiKey } from '../src/secure/apiKey';
 import { probeApiKey } from '../src/llm/client';
 
-export default function Onboarding(): JSX.Element {
+export default function Onboarding(): React.JSX.Element {
   const router = useRouter();
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);

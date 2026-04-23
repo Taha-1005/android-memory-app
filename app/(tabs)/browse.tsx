@@ -12,7 +12,7 @@ import { PageCard } from '../../src/components/PageCard';
 import { getDb } from '../../src/db/client';
 import { listPages, searchPages } from '../../src/db/repositories/pages';
 
-export default function BrowseScreen(): JSX.Element {
+export default function BrowseScreen(): React.JSX.Element {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [pages, setPages] = useState<WikiPage[]>([]);

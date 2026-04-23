@@ -14,7 +14,7 @@ const tones: Record<NonNullable<Props['tone']>, { bg: string; fg: string }> = {
   info: { bg: '#dbeafe', fg: '#1e40af' },
 };
 
-export function StatusPill({ label, tone = 'neutral' }: Props): JSX.Element {
+export function StatusPill({ label, tone = 'neutral' }: Props): React.JSX.Element {
   const t = tones[tone];
   return (
     <View style={[styles.pill, { backgroundColor: t.bg }]}>

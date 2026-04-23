@@ -19,7 +19,7 @@ import { computeBacklinks } from '../../src/domain/backlinks';
 import { slugify } from '../../src/domain/slugify';
 import { nowIso, formatRelative } from '../../src/utils/time';
 
-export default function PageScreen(): JSX.Element {
+export default function PageScreen(): React.JSX.Element {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const [page, setPage] = useState<WikiPage | null>(null);

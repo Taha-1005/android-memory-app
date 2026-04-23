@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { initDb } from '../src/db/client';
 import { resetOrphanedProcessing } from '../src/db/repositories/sourceLog';
 
-export default function RootLayout(): JSX.Element {
+export default function RootLayout(): React.JSX.Element {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {

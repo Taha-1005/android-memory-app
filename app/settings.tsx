@@ -23,7 +23,7 @@ import { runMerge } from '../src/llm/merge';
 import { mergePage } from '../src/domain/mergePage';
 import { slugify } from '../src/domain/slugify';
 
-export default function SettingsScreen(): JSX.Element {
+export default function SettingsScreen(): React.JSX.Element {
   const router = useRouter();
   const [key, setKey] = useState<string | null>(null);
   const [newKey, setNewKey] = useState('');
@@ -258,7 +258,7 @@ export default function SettingsScreen(): JSX.Element {
   );
 }
 
-function StatCell({ label, value, warn }: { label: string; value: number; warn: boolean }): JSX.Element {
+function StatCell({ label, value, warn }: { label: string; value: number; warn: boolean }): React.JSX.Element {
   return (
     <View style={[styles.stat, warn && styles.statWarn]}>
       <Text style={[styles.statValue, warn && styles.statValueWarn]}>{value}</Text>

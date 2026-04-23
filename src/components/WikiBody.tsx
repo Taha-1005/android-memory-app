@@ -8,7 +8,7 @@ interface Props {
   style?: TextStyle;
 }
 
-export function WikiBody({ text, onOpen, style }: Props): JSX.Element {
+export function WikiBody({ text, onOpen, style }: Props): React.JSX.Element {
   const parts: Array<{ t: 'text' | 'link'; v: string }> = [];
   const re = /\[\[([^\]]+)\]\]/g;
   let last = 0;

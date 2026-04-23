@@ -18,7 +18,7 @@ const kindTone: Record<
   source: 'warn',
 };
 
-export function PageCard({ page, onPress }: Props): JSX.Element {
+export function PageCard({ page, onPress }: Props): React.JSX.Element {
   return (
     <Pressable
       onPress={() => onPress(page.slug)}
