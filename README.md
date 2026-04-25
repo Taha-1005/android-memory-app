@@ -37,18 +37,26 @@ npm test                    # unit tests only — no network, no API key needed
 npm run typecheck           # tsc --noEmit
 ```
 
-### Integration test (real Anthropic API, minimal cost)
+### Integration tests (real API, minimal cost)
 
-This suite makes exactly **three** live calls — a 5-token probe, one ingest,
-and one query — all using `claude-haiku-4-5-20251001` with tiny inputs. A
-full run is well under $0.001 of API usage.
+Two parallel live suites — one per provider — both gated behind
+`INTEGRATION=1`. Each suite makes exactly **three** calls (key probe +
+one ingest + one query) using a cheap/free model and tiny inputs.
 
 ```bash
+# Anthropic — under ~$0.001 per full run on Haiku.
 ANTHROPIC_API_KEY=sk-ant-... INTEGRATION=1 npm run test:integration
+
+# Gemini — $0 on the free tier (Flash-Lite, 15 RPM / 1000 RPD).
+GEMINI_API_KEY=AIza...      INTEGRATION=1 npm run test:integration
+
+# Both at once is fine — each suite skips if its key isn't set.
+ANTHROPIC_API_KEY=sk-ant-... GEMINI_API_KEY=AIza... INTEGRATION=1 npm run test:integration
 ```
 
-Without `ANTHROPIC_API_KEY`, the three paid tests auto-skip and only the
-negative-path sanity checks run.
+Without any keys, the paid tests auto-skip and only the negative-path
+sanity checks run. Override the Gemini model with `GEMINI_MODEL=gemini-2.5-flash`
+if you want to exercise Flash instead of Flash-Lite.
 
 ---
 
