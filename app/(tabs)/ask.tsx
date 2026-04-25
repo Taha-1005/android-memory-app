@@ -16,7 +16,7 @@ import { getDb } from '../../src/db/client';
 import { listPages } from '../../src/db/repositories/pages';
 import { rankPagesForQuery } from '../../src/domain/rankPages';
 import { runQuery } from '../../src/llm/query';
-import { getApiKey, getModel } from '../../src/secure/apiKey';
+import { getApiKey, getModel, getProvider } from '../../src/secure/apiKey';
 import { QueryResult } from '../../src/domain/types';
 import { fileAnswerAsPage } from '../../src/services/ingestPipeline';
 import { slugify } from '../../src/domain/slugify';
@@ -41,6 +41,7 @@ export default function AskScreen(): React.JSX.Element {
     try {
       const apiKey = await getApiKey();
       if (!apiKey) throw new Error('Add your API key in Settings first.');
+      const provider = await getProvider();
       const model = await getModel();
       const db = getDb();
       const all = await listPages(db);
@@ -54,7 +55,7 @@ export default function AskScreen(): React.JSX.Element {
         });
         return;
       }
-      const res = await runQuery(q, top, { apiKey, model });
+      const res = await runQuery(q, top, { provider, apiKey, model });
       setResult(res);
       setFileTitle(q.replace(/\?+$/, '').trim());
     } catch (e) {

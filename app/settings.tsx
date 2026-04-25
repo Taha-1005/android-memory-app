@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,8 +13,18 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { ErrorBanner } from '../src/components/ErrorBanner';
-import { clearApiKey, getApiKey, getModel, maskKey, setApiKey, setModel } from '../src/secure/apiKey';
-import { probeApiKey } from '../src/llm/client';
+import {
+  clearApiKeyFor,
+  getApiKeyFor,
+  getModelFor,
+  getProvider,
+  maskKey,
+  setApiKeyFor,
+  setModelFor,
+  setProvider,
+} from '../src/secure/apiKey';
+import { probeProviderKey, defaultModelFor, Provider } from '../src/llm/provider';
+import { FREE_GEMINI_MODELS } from '../src/llm/geminiClient';
 import { applyImport, buildExport, parseImport } from '../src/services/exportImport';
 import { getDb } from '../src/db/client';
 import { listPages, deletePage, upsertPage, getPage } from '../src/db/repositories/pages';
@@ -23,8 +34,24 @@ import { runMerge } from '../src/llm/merge';
 import { mergePage } from '../src/domain/mergePage';
 import { slugify } from '../src/domain/slugify';
 
+const PROVIDER_LABEL: Record<Provider, string> = {
+  anthropic: 'Anthropic Claude',
+  gemini: 'Google Gemini (free)',
+};
+
+const PROVIDER_KEY_HINT: Record<Provider, string> = {
+  anthropic: 'sk-ant-…',
+  gemini: 'AIza… (Google AI Studio)',
+};
+
+const PROVIDER_KEY_URL: Record<Provider, string> = {
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  gemini: 'https://aistudio.google.com/apikey',
+};
+
 export default function SettingsScreen(): React.JSX.Element {
   const router = useRouter();
+  const [provider, setProviderLocal] = useState<Provider>('anthropic');
   const [key, setKey] = useState<string | null>(null);
   const [newKey, setNewKey] = useState('');
   const [model, setModelLocal] = useState('claude-sonnet-4-6');
@@ -36,8 +63,10 @@ export default function SettingsScreen(): React.JSX.Element {
   const [importText, setImportText] = useState('');
 
   const refresh = useCallback(async () => {
-    setKey(await getApiKey());
-    setModelLocal(await getModel());
+    const p = await getProvider();
+    setProviderLocal(p);
+    setKey(await getApiKeyFor(p));
+    setModelLocal(await getModelFor(p));
     const db = getDb();
     const all = await listPages(db);
     setPages(all);
@@ -48,6 +77,14 @@ export default function SettingsScreen(): React.JSX.Element {
     void refresh();
   }, [refresh]);
 
+  const onSwitchProvider = async (p: Provider) => {
+    if (p === provider) return;
+    setError(null);
+    setStatus(null);
+    await setProvider(p);
+    await refresh();
+  };
+
   const onReplaceKey = async () => {
     setError(null);
     if (newKey.trim().length < 10) {
@@ -56,9 +93,9 @@ export default function SettingsScreen(): React.JSX.Element {
     }
     setBusy(true);
     try {
-      const r = await probeApiKey(newKey.trim());
+      const r = await probeProviderKey(provider, newKey.trim(), { model });
       if (!r.ok) throw new Error(r.message);
-      await setApiKey(newKey.trim());
+      await setApiKeyFor(provider, newKey.trim());
       setNewKey('');
       setStatus('Key saved.');
       await refresh();
@@ -70,7 +107,7 @@ export default function SettingsScreen(): React.JSX.Element {
   };
 
   const onRemoveKey = async () => {
-    await clearApiKey();
+    await clearApiKeyFor(provider);
     setStatus('Key removed.');
     await refresh();
   };
@@ -83,7 +120,7 @@ export default function SettingsScreen(): React.JSX.Element {
       return;
     }
     setBusy(true);
-    const r = await probeApiKey(key);
+    const r = await probeProviderKey(provider, key, { model });
     setBusy(false);
     setStatus(r.ok ? 'Connection OK.' : null);
     if (!r.ok) setError(r.message);
@@ -91,7 +128,13 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const onChangeModel = async (m: string) => {
     setModelLocal(m);
-    await setModel(m);
+    await setModelFor(provider, m);
+  };
+
+  const onResetModel = async () => {
+    const d = defaultModelFor(provider);
+    setModelLocal(d);
+    await setModelFor(provider, d);
   };
 
   const onExport = async () => {
@@ -116,26 +159,24 @@ export default function SettingsScreen(): React.JSX.Element {
 
   const onMergeDupes = async (group: WikiPage[]) => {
     if (!key) {
-      setError('API key required to merge with Claude.');
+      setError(`API key required for ${PROVIDER_LABEL[provider]} to run merge.`);
       return;
     }
     if (group.length < 2) return;
     setBusy(true);
     try {
       const db = getDb();
-      // Iteratively fold the group down to a single page: merge(a, b) -> ab,
-      // then merge(ab, c) -> abc, and so on. A group of 2 reduces to one call;
-      // a group of N reduces to N-1 calls. This prevents data loss when the
-      // same topic has three or more duplicate pages.
       let current: WikiPage = group[0];
       for (let i = 1; i < group.length; i++) {
-        const incoming = await runMerge(current, group[i], { apiKey: key, model });
-        // Re-read in case a concurrent edit landed on the target slug.
+        const incoming = await runMerge(current, group[i], {
+          provider,
+          apiKey: key,
+          model,
+        });
         const existing = await getPage(db, slugify(incoming.title));
         current = mergePage(existing, incoming, null);
         await upsertPage(db, current);
       }
-      // Delete any original group member whose slug is not the final merged slug.
       for (const p of group) {
         if (p.slug !== current.slug) await deletePage(db, p.slug);
       }
@@ -165,12 +206,37 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
+      <Text style={styles.h1}>Provider</Text>
+      <View style={styles.providerRow}>
+        {(['anthropic', 'gemini'] as const).map((p) => (
+          <Pressable
+            key={p}
+            onPress={() => onSwitchProvider(p)}
+            style={[styles.providerBtn, provider === p && styles.providerBtnActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: provider === p }}
+          >
+            <Text
+              style={[styles.providerText, provider === p && styles.providerTextActive]}
+            >
+              {PROVIDER_LABEL[p]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.hint}>
+        Anthropic is paid; Gemini Flash is on the free tier (rate-limited).
+      </Text>
+
       <Text style={styles.h1}>API key</Text>
       <Text style={styles.mono}>{maskKey(key)}</Text>
+      <Pressable onPress={() => Linking.openURL(PROVIDER_KEY_URL[provider])}>
+        <Text style={styles.link}>Get a {PROVIDER_LABEL[provider]} key →</Text>
+      </Pressable>
       <TextInput
         value={newKey}
         onChangeText={setNewKey}
-        placeholder="Replace with new sk-ant-…"
+        placeholder={`Replace with new ${PROVIDER_KEY_HINT[provider]}`}
         secureTextEntry
         autoCapitalize="none"
         style={styles.input}
@@ -191,13 +257,35 @@ export default function SettingsScreen(): React.JSX.Element {
       <ErrorBanner message={error} />
 
       <Text style={styles.h1}>Model</Text>
+      {provider === 'gemini' ? (
+        <View style={styles.modelRow}>
+          {FREE_GEMINI_MODELS.map((m) => (
+            <Pressable
+              key={m}
+              onPress={() => onChangeModel(m)}
+              style={[styles.modelBtn, model === m && styles.modelBtnActive]}
+            >
+              <Text style={[styles.modelText, model === m && styles.modelTextActive]}>
+                {m}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <TextInput
         value={model}
         onChangeText={onChangeModel}
         autoCapitalize="none"
         style={styles.input}
       />
-      <Text style={styles.hint}>Defaults to claude-sonnet-4-6.</Text>
+      <View style={styles.btnRow}>
+        <Pressable onPress={onResetModel} style={styles.secondary}>
+          <Text style={styles.secondaryText}>Reset to default</Text>
+        </Pressable>
+      </View>
+      <Text style={styles.hint}>
+        Default for {PROVIDER_LABEL[provider]}: {defaultModelFor(provider)}.
+      </Text>
 
       <Text style={styles.h1}>Export / Import</Text>
       <Pressable onPress={onExport} style={styles.exportCard}>
@@ -232,7 +320,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 <Text key={p.slug} style={styles.dupItem}>• {p.title}</Text>
               ))}
               <Pressable onPress={() => onMergeDupes(g)} style={styles.primary}>
-                <Text style={styles.primaryText}>Merge with Claude</Text>
+                <Text style={styles.primaryText}>Merge with {PROVIDER_LABEL[provider]}</Text>
               </Pressable>
             </View>
           ))}
@@ -300,6 +388,31 @@ const styles = StyleSheet.create({
   secondaryText: { color: '#111827', fontWeight: '600' },
   ok: { color: '#065f46', marginTop: 4 },
   hint: { color: '#6b7280', fontSize: 12 },
+  link: { color: '#2563eb', marginVertical: 4 },
+  providerRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  providerBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderColor: '#d1d5db',
+    borderWidth: 1,
+  },
+  providerBtnActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+  providerText: { color: '#374151', fontWeight: '600' },
+  providerTextActive: { color: '#fff' },
+  modelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  modelBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderColor: '#d1d5db',
+    borderWidth: 1,
+  },
+  modelBtnActive: { backgroundColor: '#1f2937', borderColor: '#1f2937' },
+  modelText: { color: '#374151', fontSize: 12 },
+  modelTextActive: { color: '#fff' },
   exportCard: {
     backgroundColor: '#2563eb',
     padding: 14,
@@ -336,6 +449,5 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
     borderBottomWidth: 1,
   },
-  link: { color: '#2563eb' },
   dangerLink: { color: '#b91c1c' },
 });
