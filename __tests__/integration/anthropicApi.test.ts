@@ -38,7 +38,7 @@ describeIfKey('Anthropic API live smoke test (minimal cost)', () => {
         content: 'Octopuses are cephalopods with three hearts.',
         url: null,
       },
-      { apiKey: apiKey!, model: MODEL, maxTokens: 800, timeoutMs: 25_000 },
+      { provider: 'anthropic', apiKey: apiKey!, model: MODEL, maxTokens: 800, timeoutMs: 25_000 },
     );
     expect(pages.length).toBeGreaterThan(0);
     expect(pages.length).toBeLessThan(7);
@@ -65,7 +65,7 @@ describeIfKey('Anthropic API live smoke test (minimal cost)', () => {
           updatedAt: '',
         },
       ],
-      { apiKey: apiKey!, model: MODEL, maxTokens: 200, timeoutMs: 25_000 },
+      { provider: 'anthropic', apiKey: apiKey!, model: MODEL, maxTokens: 200, timeoutMs: 25_000 },
     );
     expect(res.answer).toMatch(/three|3/i);
     expect(['high', 'medium', 'low']).toContain(res.confidence);

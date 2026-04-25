@@ -3,7 +3,7 @@ import { mergePage } from '../domain/mergePage';
 import { slugify } from '../domain/slugify';
 import { runIngest } from '../llm/ingest';
 import { getDb } from '../db/client';
-import { getApiKey, getModel } from '../secure/apiKey';
+import { getApiKey, getModel, getProvider } from '../secure/apiKey';
 import { getPage, upsertPage } from '../db/repositories/pages';
 import { updateLog, insertLog } from '../db/repositories/sourceLog';
 import { nowIso } from '../utils/time';
@@ -37,6 +37,7 @@ export async function saveSource(params: {
 
 export async function processSource(logId: string): Promise<number> {
   const db = getDb();
+  const provider = await getProvider();
   const apiKey = await getApiKey();
   if (!apiKey) throw new Error('No API key configured.');
   const model = await getModel();
@@ -61,7 +62,7 @@ export async function processSource(logId: string): Promise<number> {
         content: row.content,
         url: row.url,
       },
-      { apiKey, model },
+      { provider, apiKey, model },
     );
 
     const sourcePage = incoming.find((p) => p.kind === 'source');

@@ -65,7 +65,11 @@ describe('iterative duplicate merge (3+ group members)', () => {
     // Same reduction Settings.tsx runs — extracted for testability.
     let current: WikiPage = group[0];
     for (let i = 1; i < group.length; i++) {
-      const incoming = await runMerge(current, group[i], { apiKey: 'x', model: 'm' });
+      const incoming = await runMerge(current, group[i], {
+        provider: 'anthropic',
+        apiKey: 'x',
+        model: 'm',
+      });
       const existing = await getPage(db, slugify(incoming.title));
       current = mergePage(existing, incoming, null);
       await upsertPage(db, current);

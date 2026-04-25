@@ -1,0 +1,92 @@
+[
+  {
+    "id": "ingest-octopus",
+    "input": {
+      "title": "Octopuses overview",
+      "kind": "text",
+      "content": "Octopuses are cephalopod molluscs of the order Octopoda. They have eight arms, three hearts, and blue copper-based blood. Their nervous system is largely distributed: about two thirds of their neurons live in their arms, not their central brain. They are widely regarded as the most intelligent invertebrates and can solve mazes, open jars, and use coconut shells as portable shelter.",
+      "url": null
+    },
+    "expected": {
+      "minPages": 2,
+      "maxPages": 6,
+      "requiredKinds": ["source"],
+      "preferredKinds": ["entity", "concept"],
+      "keywords": ["octopus", "cephalopod", "three hearts", "eight arms", "intelligent", "neurons"],
+      "linkKeywords": ["cephalop", "mollusc", "octopus"],
+      "maxBodyWords": 220
+    }
+  },
+  {
+    "id": "ingest-postgres",
+    "input": {
+      "title": "PostgreSQL MVCC notes",
+      "kind": "text",
+      "content": "PostgreSQL uses Multi-Version Concurrency Control (MVCC) to let multiple transactions read and write without blocking each other. Every row update creates a new tuple version; old versions stick around until VACUUM removes them. Long-running transactions can prevent VACUUM from cleaning up, leading to table bloat. Autovacuum runs in the background to keep this in check, but heavy write workloads sometimes need manual VACUUM tuning.",
+      "url": null
+    },
+    "expected": {
+      "minPages": 2,
+      "maxPages": 6,
+      "requiredKinds": ["source"],
+      "preferredKinds": ["concept"],
+      "keywords": ["postgres", "mvcc", "vacuum", "tuple", "transaction", "bloat"],
+      "linkKeywords": ["mvcc", "vacuum", "transaction"],
+      "maxBodyWords": 220
+    }
+  },
+  {
+    "id": "ingest-roman-republic",
+    "input": {
+      "title": "Fall of the Roman Republic",
+      "kind": "text",
+      "content": "The Roman Republic gave way to the Roman Empire over the course of the first century BCE. The Gracchi brothers' land reforms in 133 and 121 BCE exposed deep class tensions. Marius's military reforms tied legions to their generals rather than the state. Sulla's march on Rome in 88 BCE set the precedent for armed political contests. Julius Caesar crossed the Rubicon in 49 BCE; his assassination in 44 BCE triggered another civil war that ended with Octavian — soon Augustus — as the first emperor in 27 BCE.",
+      "url": null
+    },
+    "expected": {
+      "minPages": 3,
+      "maxPages": 6,
+      "requiredKinds": ["source"],
+      "preferredKinds": ["entity", "concept"],
+      "keywords": ["roman republic", "caesar", "augustus", "rubicon", "marius", "sulla", "gracchi"],
+      "linkKeywords": ["caesar", "augustus", "republic", "roman"],
+      "maxBodyWords": 220
+    }
+  },
+  {
+    "id": "ingest-coffee-brewing",
+    "input": {
+      "title": "Coffee brewing methods",
+      "kind": "text",
+      "content": "Pour-over coffee filters hot water through a paper or metal cone, producing a clean cup that highlights origin character. French press steeps grounds directly in water and yields a fuller-bodied result with more sediment. Espresso forces near-boiling water through a tightly packed puck at about 9 bars of pressure to extract a concentrated shot in 25-30 seconds. AeroPress combines immersion and pressure with a manual plunger and is forgiving of grind size.",
+      "url": null
+    },
+    "expected": {
+      "minPages": 3,
+      "maxPages": 6,
+      "requiredKinds": ["source"],
+      "preferredKinds": ["concept"],
+      "keywords": ["pour-over", "french press", "espresso", "aeropress", "extraction"],
+      "linkKeywords": ["coffee", "espresso", "press", "pour"],
+      "maxBodyWords": 220
+    }
+  },
+  {
+    "id": "ingest-photosynthesis",
+    "input": {
+      "title": "Photosynthesis quick refresher",
+      "kind": "text",
+      "content": "Photosynthesis converts light, carbon dioxide, and water into glucose and oxygen. The light-dependent reactions occur in the thylakoid membranes of the chloroplast, splitting water and producing ATP and NADPH. The Calvin cycle then uses that ATP and NADPH in the stroma to fix CO2 into sugars via the enzyme RuBisCO. Net equation: 6 CO2 + 6 H2O + light -> C6H12O6 + 6 O2.",
+      "url": null
+    },
+    "expected": {
+      "minPages": 2,
+      "maxPages": 6,
+      "requiredKinds": ["source"],
+      "preferredKinds": ["concept"],
+      "keywords": ["photosynthesis", "chloroplast", "calvin cycle", "thylakoid", "rubisco", "atp"],
+      "linkKeywords": ["chloroplast", "calvin", "photosynth"],
+      "maxBodyWords": 220
+    }
+  }
+]
