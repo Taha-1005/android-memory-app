@@ -39,24 +39,30 @@ npm run typecheck           # tsc --noEmit
 
 ### Integration tests (real API, minimal cost)
 
-Two parallel live suites — one per provider — both gated behind
-`INTEGRATION=1`. Each suite makes exactly **three** calls (key probe +
-one ingest + one query) using a cheap/free model and tiny inputs.
+A single parametrized live suite covers every provider — one row per
+provider in `__tests__/integration/liveApi.test.ts`. Each row makes
+exactly **three** calls (key probe + one ingest + one query) using a
+cheap/free model and tiny inputs.
+
+The gate is the `INTEGRATION=1` flag and **only** that flag. Setting it
+without configuring the relevant API keys is a configuration error and
+the suite will fail loudly — there is no per-key auto-skip. Running
+`npm test` (no flag) never touches the live API.
 
 ```bash
-# Anthropic — under ~$0.001 per full run on Haiku.
-ANTHROPIC_API_KEY=sk-ant-... INTEGRATION=1 npm run test:integration
+# Both providers in one go (each row needs its own key).
+ANTHROPIC_API_KEY=sk-ant-... GEMINI_API_KEY=AIza... \
+  INTEGRATION=1 npm run test:integration
 
-# Gemini — $0 on the free tier (Flash-Lite, 15 RPM / 1000 RPD).
-GEMINI_API_KEY=AIza...      INTEGRATION=1 npm run test:integration
-
-# Both at once is fine — each suite skips if its key isn't set.
-ANTHROPIC_API_KEY=sk-ant-... GEMINI_API_KEY=AIza... INTEGRATION=1 npm run test:integration
+# To exercise only one provider, run jest with a name filter:
+ANTHROPIC_API_KEY=sk-ant-... \
+  INTEGRATION=1 npx jest __tests__/integration -t anthropic
 ```
 
-Without any keys, the paid tests auto-skip and only the negative-path
-sanity checks run. Override the Gemini model with `GEMINI_MODEL=gemini-2.5-flash`
-if you want to exercise Flash instead of Flash-Lite.
+Override the models with `ANTHROPIC_MODEL=...` or `GEMINI_MODEL=...`
+(defaults: `claude-haiku-4-5-20251001` and `gemini-2.5-flash-lite`).
+Anthropic on Haiku is well under $0.001 per full run; Gemini on
+Flash-Lite is $0 on the free tier.
 
 ---
 
