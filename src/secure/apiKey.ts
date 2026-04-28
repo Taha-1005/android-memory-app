@@ -1,9 +1,19 @@
 /**
- * Wrapper around expo-secure-store for the Anthropic API key.
- * The key value is never written anywhere else (no SQLite, no logs).
+ * Wrapper around expo-secure-store for LLM provider credentials.
+ *
+ * Two providers are supported: Anthropic (paid) and Google Gemini (free tier).
+ * Each provider stores its own API key and preferred model under a separate
+ * key. The `provider` setting tracks which one the app is currently using.
+ *
+ * Keys are never written anywhere else — no SQLite, no logs.
  */
-const KEY_NAME = 'anthropic_api_key';
-const MODEL_NAME = 'anthropic_model';
+import { defaultModelFor, isProvider, Provider } from '../llm/provider';
+
+const ANTHROPIC_KEY_NAME = 'anthropic_api_key';
+const ANTHROPIC_MODEL_NAME = 'anthropic_model';
+const GEMINI_KEY_NAME = 'gemini_api_key';
+const GEMINI_MODEL_NAME = 'gemini_model';
+const PROVIDER_NAME = 'llm_provider';
 
 type SecureStore = {
   getItemAsync(key: string): Promise<string | null>;
@@ -23,29 +33,69 @@ async function store(): Promise<SecureStore> {
   return mod;
 }
 
-export async function getApiKey(): Promise<string | null> {
+function keyNameFor(provider: Provider): string {
+  return provider === 'gemini' ? GEMINI_KEY_NAME : ANTHROPIC_KEY_NAME;
+}
+
+function modelNameFor(provider: Provider): string {
+  return provider === 'gemini' ? GEMINI_MODEL_NAME : ANTHROPIC_MODEL_NAME;
+}
+
+export async function getProvider(): Promise<Provider> {
   const s = await store();
-  return s.getItemAsync(KEY_NAME);
+  const v = await s.getItemAsync(PROVIDER_NAME);
+  return isProvider(v) ? v : 'anthropic';
+}
+
+export async function setProvider(provider: Provider): Promise<void> {
+  const s = await store();
+  await s.setItemAsync(PROVIDER_NAME, provider);
+}
+
+export async function getApiKeyFor(provider: Provider): Promise<string | null> {
+  const s = await store();
+  return s.getItemAsync(keyNameFor(provider));
+}
+
+export async function setApiKeyFor(provider: Provider, key: string): Promise<void> {
+  const s = await store();
+  await s.setItemAsync(keyNameFor(provider), key);
+}
+
+export async function clearApiKeyFor(provider: Provider): Promise<void> {
+  const s = await store();
+  await s.deleteItemAsync(keyNameFor(provider));
+}
+
+export async function getModelFor(provider: Provider): Promise<string> {
+  const s = await store();
+  return (await s.getItemAsync(modelNameFor(provider))) ?? defaultModelFor(provider);
+}
+
+export async function setModelFor(provider: Provider, model: string): Promise<void> {
+  const s = await store();
+  await s.setItemAsync(modelNameFor(provider), model);
+}
+
+/** Active-provider convenience accessors. Used by ingest/query/merge call sites. */
+export async function getApiKey(): Promise<string | null> {
+  return getApiKeyFor(await getProvider());
 }
 
 export async function setApiKey(key: string): Promise<void> {
-  const s = await store();
-  await s.setItemAsync(KEY_NAME, key);
+  await setApiKeyFor(await getProvider(), key);
 }
 
 export async function clearApiKey(): Promise<void> {
-  const s = await store();
-  await s.deleteItemAsync(KEY_NAME);
+  await clearApiKeyFor(await getProvider());
 }
 
 export async function getModel(): Promise<string> {
-  const s = await store();
-  return (await s.getItemAsync(MODEL_NAME)) ?? 'claude-sonnet-4-6';
+  return getModelFor(await getProvider());
 }
 
 export async function setModel(model: string): Promise<void> {
-  const s = await store();
-  await s.setItemAsync(MODEL_NAME, model);
+  await setModelFor(await getProvider(), model);
 }
 
 export function maskKey(key: string | null): string {

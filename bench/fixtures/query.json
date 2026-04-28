@@ -1,0 +1,141 @@
+[
+  {
+    "id": "query-octopus-hearts",
+    "query": "How many hearts does an octopus have, and where do most of its neurons live?",
+    "pages": [
+      {
+        "slug": "octopuses",
+        "title": "Octopuses",
+        "kind": "entity",
+        "body": "Octopuses are cephalopods with three hearts and blue copper-based blood. About two thirds of their neurons live in their arms, not the central brain. See [[Cephalopoda]].",
+        "facts": ["Three hearts", "Eight arms", "Two thirds of neurons in arms"],
+        "links": ["Cephalopoda"]
+      },
+      {
+        "slug": "cephalopoda",
+        "title": "Cephalopoda",
+        "kind": "concept",
+        "body": "Class of molluscs including octopuses, squid, and cuttlefish.",
+        "facts": ["Includes octopuses, squid, cuttlefish"],
+        "links": ["Octopuses"]
+      }
+    ],
+    "expected": {
+      "keywords": ["three", "hearts", "arms", "neurons"],
+      "mustCite": ["Octopuses"],
+      "mayCite": ["Cephalopoda"],
+      "minConfidence": "medium",
+      "maxAnswerWords": 120
+    }
+  },
+  {
+    "id": "query-postgres-vacuum",
+    "query": "Why do long-running transactions in Postgres cause table bloat?",
+    "pages": [
+      {
+        "slug": "mvcc",
+        "title": "MVCC",
+        "kind": "concept",
+        "body": "Multi-Version Concurrency Control creates a new tuple for every update; old versions wait for [[VACUUM]].",
+        "facts": ["New tuple per update", "Old versions await VACUUM"],
+        "links": ["VACUUM"]
+      },
+      {
+        "slug": "vacuum",
+        "title": "VACUUM",
+        "kind": "concept",
+        "body": "VACUUM reclaims space from dead tuples. It cannot remove tuples still visible to any open transaction, so long-running transactions block cleanup and produce table bloat.",
+        "facts": ["Cannot remove tuples visible to any open txn", "Long-running txns block cleanup"],
+        "links": ["MVCC"]
+      }
+    ],
+    "expected": {
+      "keywords": ["vacuum", "long", "transaction", "tuple", "bloat"],
+      "mustCite": ["VACUUM"],
+      "mayCite": ["MVCC"],
+      "minConfidence": "medium",
+      "maxAnswerWords": 150
+    }
+  },
+  {
+    "id": "query-rubicon-year",
+    "query": "In what year did Julius Caesar cross the Rubicon, and what was the political consequence?",
+    "pages": [
+      {
+        "slug": "julius-caesar",
+        "title": "Julius Caesar",
+        "kind": "entity",
+        "body": "Roman general and statesman. Crossed the [[Rubicon]] in 49 BCE, an act of war against the Senate.",
+        "facts": ["Crossed Rubicon in 49 BCE", "Assassinated 44 BCE"],
+        "links": ["Rubicon", "Roman Republic"]
+      },
+      {
+        "slug": "rubicon",
+        "title": "Rubicon",
+        "kind": "concept",
+        "body": "Small river in northern Italy. Crossing it with an army was illegal under Roman law and was effectively a declaration of war on the Senate.",
+        "facts": ["Crossing with an army illegal", "Triggered civil war in 49 BCE"],
+        "links": ["Julius Caesar"]
+      }
+    ],
+    "expected": {
+      "keywords": ["49", "civil war"],
+      "mustCite": ["Julius Caesar"],
+      "mayCite": ["Rubicon"],
+      "minConfidence": "medium",
+      "maxAnswerWords": 120
+    }
+  },
+  {
+    "id": "query-out-of-scope",
+    "query": "What is the population of Tokyo in 2024?",
+    "pages": [
+      {
+        "slug": "octopuses",
+        "title": "Octopuses",
+        "kind": "entity",
+        "body": "Octopuses are cephalopods with three hearts.",
+        "facts": ["Three hearts"],
+        "links": []
+      }
+    ],
+    "expected": {
+      "keywords": ["don't", "no", "doesn't", "not", "cannot"],
+      "mustCite": [],
+      "mayCite": [],
+      "minConfidence": "low",
+      "maxConfidence": "low",
+      "maxAnswerWords": 80,
+      "mustNotHallucinate": ["million", "13", "14", "37", "tokyo", "japan"]
+    }
+  },
+  {
+    "id": "query-photosynthesis-where",
+    "query": "Where exactly in the chloroplast do the light-dependent reactions take place, and what do they produce?",
+    "pages": [
+      {
+        "slug": "photosynthesis",
+        "title": "Photosynthesis",
+        "kind": "concept",
+        "body": "Process that converts light, CO2, and water into glucose and O2. Light-dependent reactions take place in the [[Thylakoid]] membranes; the [[Calvin cycle]] runs in the stroma.",
+        "facts": ["Light reactions in thylakoid", "Calvin cycle in stroma"],
+        "links": ["Thylakoid", "Calvin cycle"]
+      },
+      {
+        "slug": "thylakoid",
+        "title": "Thylakoid",
+        "kind": "concept",
+        "body": "Membrane-bound compartment inside chloroplasts. The light-dependent reactions split water and produce ATP and NADPH here.",
+        "facts": ["Inside chloroplast", "Splits water", "Produces ATP and NADPH"],
+        "links": ["Photosynthesis"]
+      }
+    ],
+    "expected": {
+      "keywords": ["thylakoid", "atp", "nadph"],
+      "mustCite": ["Thylakoid"],
+      "mayCite": ["Photosynthesis"],
+      "minConfidence": "medium",
+      "maxAnswerWords": 140
+    }
+  }
+]

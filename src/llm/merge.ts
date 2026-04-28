@@ -1,7 +1,7 @@
 import { IncomingPage, WikiPage, PageKind } from '../domain/types';
 import { extractJson } from '../utils/json';
 import { buildMergePrompt } from './prompts';
-import { callClaudeAPI, AnthropicClientOptions } from './client';
+import { callLLM, LLMCallOptions } from './provider';
 
 const ALLOWED_KINDS: PageKind[] = ['entity', 'concept', 'source'];
 
@@ -22,9 +22,9 @@ export function parseMergeResponse(raw: string): IncomingPage {
 export async function runMerge(
   a: WikiPage,
   b: WikiPage,
-  opts: AnthropicClientOptions,
+  opts: LLMCallOptions,
 ): Promise<IncomingPage> {
   const prompt = buildMergePrompt({ a, b });
-  const { text } = await callClaudeAPI(prompt, { maxTokens: 1500, ...opts });
+  const { text } = await callLLM(prompt, { maxTokens: 1500, jsonMode: true, ...opts });
   return parseMergeResponse(text);
 }

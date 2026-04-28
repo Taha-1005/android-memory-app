@@ -1,7 +1,7 @@
 import { QueryResult, WikiPage } from '../domain/types';
 import { extractJson } from '../utils/json';
 import { buildQueryPrompt } from './prompts';
-import { callClaudeAPI, AnthropicClientOptions } from './client';
+import { callLLM, LLMCallOptions } from './provider';
 
 export function parseQueryResponse(raw: string): QueryResult {
   const parsed = extractJson<Partial<QueryResult>>(raw);
@@ -17,7 +17,7 @@ export function parseQueryResponse(raw: string): QueryResult {
 export async function runQuery(
   query: string,
   pages: WikiPage[],
-  opts: AnthropicClientOptions,
+  opts: LLMCallOptions,
 ): Promise<QueryResult> {
   const prompt = buildQueryPrompt({
     query,
@@ -28,6 +28,6 @@ export async function runQuery(
       facts: p.facts,
     })),
   });
-  const { text } = await callClaudeAPI(prompt, opts);
+  const { text } = await callLLM(prompt, { jsonMode: true, ...opts });
   return parseQueryResponse(text);
 }

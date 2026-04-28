@@ -1,7 +1,7 @@
 import { IncomingPage, PageKind } from '../domain/types';
 import { extractJson } from '../utils/json';
 import { buildIngestPrompt } from './prompts';
-import { callClaudeAPI, AnthropicClientOptions } from './client';
+import { callLLM, LLMCallOptions } from './provider';
 
 export interface IngestInput {
   title: string;
@@ -36,9 +36,9 @@ export function parseIngestResponse(raw: string): IncomingPage[] {
 
 export async function runIngest(
   input: IngestInput,
-  opts: AnthropicClientOptions,
+  opts: LLMCallOptions,
 ): Promise<IncomingPage[]> {
   const prompt = buildIngestPrompt(input);
-  const { text } = await callClaudeAPI(prompt, opts);
+  const { text } = await callLLM(prompt, { jsonMode: true, ...opts });
   return parseIngestResponse(text);
 }
