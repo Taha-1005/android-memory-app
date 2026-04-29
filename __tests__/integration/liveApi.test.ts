@@ -9,25 +9,27 @@
  *     npm run test:integration               # nothing without flag
  *     INTEGRATION=1 jest __tests__/integration   # runs both providers
  *
- * Per provider this suite makes exactly three calls (probe + ingest +
- * query) using a cheap/free model and tiny inputs. Anthropic on Haiku
- * is well under $0.001 per run; Gemini on Flash-Lite is $0 (free tier).
+ * Project rule: every Claude call routed through callLLM uses Sonnet 4.6.
+ * The ANTHROPIC_MODEL override is therefore informational only — callLLM
+ * pins the model regardless. Direct callClaudeAPI guardrail tests still
+ * honour the passed model.
  *
  * Required env (when INTEGRATION=1):
  *   ANTHROPIC_API_KEY   for the anthropic row
  *   GEMINI_API_KEY      for the gemini row
  *
  * Optional env:
- *   ANTHROPIC_MODEL     defaults to claude-haiku-4-5-20251001
  *   GEMINI_MODEL        defaults to gemini-2.5-flash-lite
  *
  * Adding a third provider in future is a one-row change to PROVIDERS.
  */
 import { runIngest } from '../../src/llm/ingest';
 import { runQuery } from '../../src/llm/query';
+import { runDuplicateCheck, runDuplicateScan } from '../../src/llm/duplicates';
 import { callClaudeAPI } from '../../src/llm/client';
 import { callGeminiAPI } from '../../src/llm/geminiClient';
 import { Provider, probeProviderKey } from '../../src/llm/provider';
+import { WikiPage } from '../../src/domain/types';
 
 interface ProviderRow {
   label: string;
@@ -42,7 +44,8 @@ const PROVIDERS: ProviderRow[] = [
     label: 'anthropic',
     provider: 'anthropic',
     envKey: 'ANTHROPIC_API_KEY',
-    defaultModel: 'claude-haiku-4-5-20251001',
+    // callLLM pins Anthropic to Sonnet 4.6 regardless; this is informational.
+    defaultModel: 'claude-sonnet-4-6',
     envModelOverride: 'ANTHROPIC_MODEL',
   },
   {
@@ -91,6 +94,90 @@ describe.each(PROVIDERS)('$label live smoke test', (row) => {
       expect(typeof p.title).toBe('string');
       expect(['entity', 'concept', 'source']).toContain(p.kind);
     }
+  });
+
+  it('duplicate scan flags two pages about the same entity', async () => {
+    const corpus: WikiPage[] = [
+      {
+        slug: 'apple-inc',
+        title: 'Apple Inc',
+        kind: 'entity',
+        body: 'Apple Inc. is a technology company headquartered in Cupertino.',
+        facts: ['Founded 1976', 'HQ Cupertino'],
+        links: [],
+        sources: [],
+        userEdited: false,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        slug: 'apple-company',
+        title: 'Apple (company)',
+        kind: 'entity',
+        body: 'Apple is the consumer-electronics company behind the iPhone and Mac.',
+        facts: ['Makes iPhone', 'Founded by Steve Jobs'],
+        links: [],
+        sources: [],
+        userEdited: false,
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        slug: 'apple-fruit',
+        title: 'Apple (fruit)',
+        kind: 'concept',
+        body: 'A pomaceous fruit produced by Malus domestica.',
+        facts: ['Grows on trees'],
+        links: [],
+        sources: [],
+        userEdited: false,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    const report = await runDuplicateScan(corpus, {
+      provider: row.provider,
+      apiKey,
+      model,
+      maxTokens: 1500,
+      timeoutMs: 30_000,
+    });
+    expect(report.groups.length).toBeGreaterThanOrEqual(1);
+    const dupeGroup = report.groups.find(
+      (g) => g.slugs.includes('apple-inc') && g.slugs.includes('apple-company'),
+    );
+    expect(dupeGroup).toBeDefined();
+    expect(dupeGroup!.slugs).not.toContain('apple-fruit');
+  });
+
+  it('duplicate check spots an obvious overlap with an existing page', async () => {
+    const existing: WikiPage[] = [
+      {
+        slug: 'octopuses',
+        title: 'Octopuses',
+        kind: 'entity',
+        body: 'Octopuses are cephalopods with three hearts.',
+        facts: ['Three hearts', 'Cephalopod'],
+        links: [],
+        sources: [],
+        userEdited: false,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    const result = await runDuplicateCheck(
+      {
+        title: 'Octopus',
+        kind: 'entity',
+        body: 'The octopus is a cephalopod with three hearts and blue blood.',
+        facts: ['Three hearts', 'Blue blood'],
+        links: [],
+      },
+      existing,
+      { provider: row.provider, apiKey, model, maxTokens: 800, timeoutMs: 30_000 },
+    );
+    expect(result.status).toBe('duplicate');
+    expect(result.existingSlug).toBe('octopuses');
   });
 
   it('answers a query grounded in a single in-memory page', async () => {

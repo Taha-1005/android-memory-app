@@ -49,6 +49,41 @@ describe('callLLM dispatch', () => {
     expect(res.usage).toEqual({ promptTokens: 11, outputTokens: 22, totalTokens: 33 });
   });
 
+  it('retries once on a 503 from anthropic, then returns the success', async () => {
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: { type: 'overloaded' } }, 503))
+      .mockResolvedValueOnce(
+        jsonResponse({ content: [{ type: 'text', text: 'A' }], usage: {} }),
+      );
+    const res = await callLLM('hi', {
+      provider: 'anthropic',
+      apiKey: 'k',
+      fetchImpl,
+      timeoutMs: 1000,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(res.text).toBe('A');
+  });
+
+  it('translates a sustained 429 into a friendly rate-limit message', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(
+      jsonResponse({ error: { type: 'rate_limit_error' } }, 429),
+    );
+    await expect(
+      callLLM('hi', { provider: 'gemini', apiKey: 'k', fetchImpl, timeoutMs: 1000 }),
+    ).rejects.toThrow(/free-tier rate limit/);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry on 401', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(jsonResponse({}, 401));
+    await expect(
+      callLLM('hi', { provider: 'anthropic', apiKey: 'k', fetchImpl, timeoutMs: 1000 }),
+    ).rejects.toThrow(/API 401/);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('routes gemini to generativelanguage.googleapis.com and normalises usage', async () => {
     const fetchImpl = jest.fn().mockResolvedValue(
       jsonResponse({

@@ -1,5 +1,11 @@
 import { assertOnline } from '../utils/network';
 
+export interface AnthropicToolDef {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
 export interface AnthropicClientOptions {
   apiKey: string;
   model?: string;
@@ -9,11 +15,33 @@ export interface AnthropicClientOptions {
   fetchImpl?: typeof fetch;
   /** Skip the offline pre-check — tests with a mocked fetch pass this. */
   skipConnectivityCheck?: boolean;
+  /**
+   * Anthropic system prompt. When provided, sent in the API's dedicated
+   * `system` field rather than concatenated into the user turn.
+   */
+  system?: string;
+  /**
+   * When true, mark the system block with `cache_control: ephemeral` so
+   * subsequent calls with the same system prefix can hit Anthropic's
+   * prompt cache. Caller should ensure `system` is large enough to be
+   * worth caching (Sonnet 4.6 caches blocks ≥ 1024 tokens).
+   */
+  cacheSystem?: boolean;
+  /**
+   * Force a structured response via tool_use. When set, Anthropic must
+   * return a single tool_use block whose input matches the schema.
+   * extractResponseText returns the JSON.stringify of that input so
+   * downstream JSON parsers stay unchanged.
+   */
+  tool?: AnthropicToolDef;
 }
 
 export interface AnthropicResponseBlock {
   type: string;
   text?: string;
+  /** Present on tool_use blocks. */
+  name?: string;
+  input?: unknown;
 }
 
 export interface AnthropicResponse {
@@ -24,6 +52,9 @@ export interface AnthropicResponse {
 
 export function extractResponseText(data: AnthropicResponse): string {
   const blocks = data.content || [];
+  // Prefer tool_use output when present — that's the structured-output path.
+  const toolBlock = blocks.find((b) => b?.type === 'tool_use' && b.input !== undefined);
+  if (toolBlock) return JSON.stringify(toolBlock.input);
   return blocks
     .filter((b) => b?.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text as string)
@@ -42,6 +73,9 @@ export async function callClaudeAPI(
     signal,
     fetchImpl,
     skipConnectivityCheck,
+    system,
+    cacheSystem,
+    tool,
   } = opts;
   if (!apiKey) throw new Error('No API key configured.');
 
@@ -63,6 +97,21 @@ export async function callClaudeAPI(
   };
   signal?.addEventListener('abort', abortListener, { once: true });
 
+  const requestBody: Record<string, unknown> = {
+    model,
+    max_tokens: maxTokens,
+    messages: [{ role: 'user', content: prompt }],
+  };
+  if (system) {
+    requestBody.system = cacheSystem
+      ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+      : system;
+  }
+  if (tool) {
+    requestBody.tools = [tool];
+    requestBody.tool_choice = { type: 'tool', name: tool.name };
+  }
+
   const fetchPromise = doFetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -70,11 +119,7 @@ export async function callClaudeAPI(
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+    body: JSON.stringify(requestBody),
     signal: controller.signal,
   });
 
