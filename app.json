@@ -3,6 +3,9 @@
     "name": "Mobile Wiki",
     "slug": "mobile-wiki",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "mobilewiki",

@@ -152,6 +152,42 @@ This produces a real APK/AAB you can sideload onto any Android device.
      Allow). Accept, then tap **Install**.
 4. On first launch, paste your API key into onboarding.
 
+#### Live updates (OTA) for the EAS preview APK
+
+Once you've installed an APK from the `preview` profile, the app can pull
+JavaScript / asset changes over-the-air without a reinstall — a push to
+`main` republishes the JS bundle and the installed app picks it up on next
+launch.
+
+**One-time setup (per repo, per Expo account):**
+
+1. Locally, after `eas login`, run:
+   ```bash
+   eas update:configure
+   ```
+   This writes `extra.eas.projectId` and `updates.url` into `app.json` and
+   links the project to your Expo account. Commit those changes.
+2. In Expo's dashboard, create a Personal Access Token and add it to the
+   GitHub repo as a secret named `EXPO_TOKEN` (Settings → Secrets and
+   variables → Actions).
+3. Build a fresh preview APK so the channel and `expo-updates` runtime are
+   baked into the binary:
+   ```bash
+   eas build -p android --profile preview
+   ```
+   Install this APK on the phone.
+
+**After that:** every push to `main` runs `.github/workflows/eas-update.yml`,
+which publishes an update to the `preview` EAS Update branch. The installed
+APK reloads with the new bundle on next launch.
+
+**You'll need a new APK (not just an OTA update) when:**
+- You add or upgrade a native dependency (anything with a `ios/` /
+  `android/` directory in its package — most `expo-*` modules do).
+- You bump `expo.version` in `app.json` (the `runtimeVersion` policy is
+  `appVersion`, so a version bump invalidates older OTA bundles).
+- You change anything under `expo.android` / `expo.ios` in `app.json`.
+
 ### Option 3 — Local Gradle build (no EAS account)
 
 If you prefer a fully local build:
