@@ -1,8 +1,38 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { initDb } from '../src/db/client';
 import { resetOrphanedProcessing } from '../src/db/repositories/sourceLog';
+import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
+
+function ThemedStack(): React.JSX.Element {
+  const { colors, mode } = useTheme();
+  return (
+    <>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.headerBg },
+          headerTintColor: colors.text,
+          headerTitleStyle: { color: colors.text },
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="settings"
+          options={{ presentation: 'modal', title: 'Settings & Maintenance' }}
+        />
+        <Stack.Screen name="page/[slug]" options={{ title: 'Page' }} />
+        <Stack.Screen
+          name="onboarding"
+          options={{ title: 'Welcome', headerBackVisible: false }}
+        />
+      </Stack>
+    </>
+  );
+}
 
 export default function RootLayout(): React.JSX.Element {
   const [ready, setReady] = useState(false);
@@ -26,20 +56,8 @@ export default function RootLayout(): React.JSX.Element {
     );
   }
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="settings"
-        options={{ presentation: 'modal', title: 'Settings & Maintenance' }}
-      />
-      <Stack.Screen
-        name="page/[slug]"
-        options={{ title: 'Page' }}
-      />
-      <Stack.Screen
-        name="onboarding"
-        options={{ title: 'Welcome', headerBackVisible: false }}
-      />
-    </Stack>
+    <ThemeProvider>
+      <ThemedStack />
+    </ThemeProvider>
   );
 }

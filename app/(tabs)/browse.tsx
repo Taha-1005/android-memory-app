@@ -11,9 +11,13 @@ import { WikiPage } from '../../src/domain/types';
 import { PageCard } from '../../src/components/PageCard';
 import { getDb } from '../../src/db/client';
 import { listPages, searchPages } from '../../src/db/repositories/pages';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ThemeColors } from '../../src/theme/theme';
 
 export default function BrowseScreen(): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [q, setQ] = useState('');
   const [pages, setPages] = useState<WikiPage[]>([]);
 
@@ -64,6 +68,7 @@ export default function BrowseScreen(): React.JSX.Element {
           value={q}
           onChangeText={setQ}
           placeholder="Search titles, bodies, facts"
+          placeholderTextColor={colors.textMuted}
           style={styles.search}
           autoCapitalize="none"
           accessibilityLabel="Search pages"
@@ -101,28 +106,30 @@ export default function BrowseScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  searchWrap: { padding: 12, borderBottomColor: '#e5e7eb', borderBottomWidth: 1 },
-  search: {
-    backgroundColor: '#fff',
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-  },
-  count: { marginTop: 4, color: '#6b7280', fontSize: 12 },
-  section: {
-    paddingHorizontal: 4,
-    marginTop: 12,
-    marginBottom: 4,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#111827' },
-  emptySub: { marginTop: 4, color: '#6b7280', textAlign: 'center' },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    searchWrap: { padding: 12, borderBottomColor: c.borderSubtle, borderBottomWidth: 1 },
+    search: {
+      backgroundColor: c.inputBg,
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      color: c.text,
+    },
+    count: { marginTop: 4, color: c.textMuted, fontSize: 12 },
+    section: {
+      paddingHorizontal: 4,
+      marginTop: 12,
+      marginBottom: 4,
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+    emptyTitle: { fontSize: 18, fontWeight: '600', color: c.text },
+    emptySub: { marginTop: 4, color: c.textMuted, textAlign: 'center' },
+  });

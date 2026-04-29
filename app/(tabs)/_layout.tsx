@@ -2,9 +2,11 @@ import React from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { Pressable } from 'react-native';
 import { Plus, BookOpen, MessageCircle, List, Wrench } from 'lucide-react-native';
+import { useTheme } from '../../src/theme/ThemeContext';
 
 export default function TabsLayout(): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
   const settingsButton = () => (
     <Pressable
       onPress={() => router.push('/settings')}
@@ -12,14 +14,22 @@ export default function TabsLayout(): React.JSX.Element {
       accessibilityLabel="Open settings and maintenance"
       style={{ paddingHorizontal: 12 }}
     >
-      <Wrench size={22} color="#374151" />
+      <Wrench size={22} color={colors.textSecondary} />
     </Pressable>
   );
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2563eb',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: colors.tabBarBg,
+          borderTopColor: colors.borderSubtle,
+        },
+        headerStyle: { backgroundColor: colors.headerBg },
+        headerTintColor: colors.text,
+        headerTitleStyle: { color: colors.text },
         headerRight: settingsButton,
       }}
     >

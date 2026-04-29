@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -20,8 +20,12 @@ import {
 import { deletePage } from '../../src/db/repositories/pages';
 import { formatRelative } from '../../src/utils/time';
 import { processSource } from '../../src/services/ingestPipeline';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ThemeColors } from '../../src/theme/theme';
 
 export default function LogScreen(): React.JSX.Element {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [items, setItems] = useState<SourceLogEntry[]>([]);
 
   const load = useCallback(async () => {
@@ -91,9 +95,9 @@ export default function LogScreen(): React.JSX.Element {
               <View style={styles.rowTop}>
                 <View style={styles.iconCol}>
                   {item.kind === 'url' ? (
-                    <LinkIcon size={18} color="#374151" />
+                    <LinkIcon size={18} color={colors.textSecondary} />
                   ) : (
-                    <FileText size={18} color="#374151" />
+                    <FileText size={18} color={colors.textSecondary} />
                   )}
                 </View>
                 <View style={styles.main}>
@@ -129,14 +133,17 @@ export default function LogScreen(): React.JSX.Element {
                     accessibilityLabel="Reprocess"
                     style={styles.actionBtn}
                   >
-                    <RefreshCw size={18} color={item.processing ? '#9ca3af' : '#2563eb'} />
+                    <RefreshCw
+                      size={18}
+                      color={item.processing ? colors.textMuted : colors.primary}
+                    />
                   </Pressable>
                   <Pressable
                     onPress={() => onDelete(item)}
                     accessibilityLabel="Delete"
                     style={styles.actionBtn}
                   >
-                    <Trash2 size={18} color="#6b7280" />
+                    <Trash2 size={18} color={colors.textMuted} />
                   </Pressable>
                 </View>
               </View>
@@ -149,33 +156,34 @@ export default function LogScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  count: { padding: 12, color: '#6b7280' },
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyTitle: { color: '#6b7280' },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginVertical: 4,
-    borderColor: '#e5e7eb',
-    borderWidth: 1,
-  },
-  rowTop: { flexDirection: 'row', gap: 10 },
-  iconCol: { width: 22, alignItems: 'center', paddingTop: 2 },
-  main: { flex: 1, gap: 2 },
-  title: { fontSize: 15, fontWeight: '600', color: '#111827' },
-  sub: { fontSize: 12, color: '#6b7280' },
-  metaRow: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4 },
-  meta: { fontSize: 11, color: '#6b7280' },
-  actions: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
-  actionBtn: { padding: 6 },
-  errCard: {
-    backgroundColor: '#fee2e2',
-    padding: 8,
-    marginTop: 6,
-    borderRadius: 6,
-  },
-  errText: { color: '#991b1b', fontSize: 12 },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    count: { padding: 12, color: c.textMuted },
+    empty: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyTitle: { color: c.textMuted },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 10,
+      padding: 12,
+      marginVertical: 4,
+      borderColor: c.borderSubtle,
+      borderWidth: 1,
+    },
+    rowTop: { flexDirection: 'row', gap: 10 },
+    iconCol: { width: 22, alignItems: 'center', paddingTop: 2 },
+    main: { flex: 1, gap: 2 },
+    title: { fontSize: 15, fontWeight: '600', color: c.text },
+    sub: { fontSize: 12, color: c.textMuted },
+    metaRow: { flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: 4 },
+    meta: { fontSize: 11, color: c.textMuted },
+    actions: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
+    actionBtn: { padding: 6 },
+    errCard: {
+      backgroundColor: c.errBannerBg,
+      padding: 8,
+      marginTop: 6,
+      borderRadius: 6,
+    },
+    errText: { color: c.errBannerText, fontSize: 12 },
+  });

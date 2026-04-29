@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,9 +14,13 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { ErrorBanner } from '../../src/components/ErrorBanner';
 import { processSource, saveSource } from '../../src/services/ingestPipeline';
 import { getApiKey } from '../../src/secure/apiKey';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ThemeColors } from '../../src/theme/theme';
 
 export default function AddScreen(): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [mode, setMode] = useState<'text' | 'url'>('text');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -101,6 +105,7 @@ export default function AddScreen(): React.JSX.Element {
           value={title}
           onChangeText={setTitle}
           placeholder="Give this source a short name"
+          placeholderTextColor={colors.textMuted}
           style={styles.input}
           accessibilityLabel="Title"
         />
@@ -112,6 +117,7 @@ export default function AddScreen(): React.JSX.Element {
               value={content}
               onChangeText={setContent}
               placeholder="Paste the text you want Claude to ingest…"
+              placeholderTextColor={colors.textMuted}
               multiline
               style={[styles.input, styles.textarea]}
               accessibilityLabel="Source content"
@@ -125,6 +131,7 @@ export default function AddScreen(): React.JSX.Element {
               value={url}
               onChangeText={setUrl}
               placeholder="https://example.com/article"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               keyboardType="url"
               style={styles.input}
@@ -183,44 +190,46 @@ export default function AddScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#f9fafb' },
-  container: { padding: 16, gap: 8 },
-  segment: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 8, padding: 4 },
-  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
-  segmentBtnActive: { backgroundColor: '#fff' },
-  segmentText: { color: '#6b7280', fontWeight: '500' },
-  segmentTextActive: { color: '#111827' },
-  label: { fontSize: 13, color: '#374151', marginTop: 10 },
-  input: {
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#fff',
-    fontSize: 15,
-  },
-  textarea: { minHeight: 160, textAlignVertical: 'top' },
-  hint: { fontSize: 12, color: '#6b7280' },
-  warn: { fontSize: 12, color: '#92400e', marginTop: 4 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12 },
-  switchLabel: { color: '#374151' },
-  primary: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryDisabled: { backgroundColor: '#93c5fd' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  keyBanner: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a',
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  keyBannerText: { color: '#92400e', fontSize: 13, lineHeight: 18 },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: c.bg },
+    container: { padding: 16, gap: 8 },
+    segment: { flexDirection: 'row', backgroundColor: c.segmentBg, borderRadius: 8, padding: 4 },
+    segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
+    segmentBtnActive: { backgroundColor: c.segmentBtnActiveBg },
+    segmentText: { color: c.textMuted, fontWeight: '500' },
+    segmentTextActive: { color: c.text },
+    label: { fontSize: 13, color: c.textSecondary, marginTop: 10 },
+    input: {
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: c.inputBg,
+      color: c.text,
+      fontSize: 15,
+    },
+    textarea: { minHeight: 160, textAlignVertical: 'top' },
+    hint: { fontSize: 12, color: c.textMuted },
+    warn: { fontSize: 12, color: c.warnBannerText, marginTop: 4 },
+    switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12 },
+    switchLabel: { color: c.textSecondary },
+    primary: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    primaryDisabled: { backgroundColor: c.primaryDisabled },
+    primaryText: { color: c.onPrimary, fontSize: 16, fontWeight: '600' },
+    keyBanner: {
+      backgroundColor: c.warnBannerBg,
+      borderColor: c.warnBannerBorder,
+      borderWidth: 1,
+      padding: 12,
+      borderRadius: 8,
+      marginTop: 8,
+    },
+    keyBannerText: { color: c.warnBannerText, fontSize: 13, lineHeight: 18 },
+  });

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -18,10 +18,14 @@ import { deleteLogBySlug } from '../../src/db/repositories/sourceLog';
 import { computeBacklinks } from '../../src/domain/backlinks';
 import { slugify } from '../../src/domain/slugify';
 import { nowIso, formatRelative } from '../../src/utils/time';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ThemeColors } from '../../src/theme/theme';
 
 export default function PageScreen(): React.JSX.Element {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [page, setPage] = useState<WikiPage | null>(null);
   const [backlinks, setBacklinks] = useState<WikiPage[]>([]);
   const [editing, setEditing] = useState(false);
@@ -113,6 +117,7 @@ export default function PageScreen(): React.JSX.Element {
               onChangeText={setEditBody}
               multiline
               style={[styles.input, { minHeight: 200 }]}
+              placeholderTextColor={colors.textMuted}
               accessibilityLabel="Edit body"
             />
             <View style={styles.btnRow}>
@@ -135,7 +140,7 @@ export default function PageScreen(): React.JSX.Element {
                 <Text style={styles.link}>Edit</Text>
               </Pressable>
               <Pressable onPress={onDelete}>
-                <Text style={[styles.link, { color: '#b91c1c' }]}>Delete</Text>
+                <Text style={[styles.link, { color: colors.dangerText }]}>Delete</Text>
               </Pressable>
             </View>
           </>
@@ -190,56 +195,58 @@ export default function PageScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#f9fafb' },
-  container: { padding: 16, gap: 10 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  muted: { color: '#6b7280' },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 20, fontWeight: '700', color: '#111827', flex: 1 },
-  meta: { color: '#6b7280', fontSize: 12, marginBottom: 4 },
-  card: {
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 10,
-    borderColor: '#e5e7eb',
-    borderWidth: 1,
-  },
-  sectionTitle: { fontWeight: '600', color: '#111827', marginBottom: 6 },
-  fact: { color: '#374151', marginTop: 2 },
-  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  pill: {
-    backgroundColor: '#eff6ff',
-    borderColor: '#bfdbfe',
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  pillText: { color: '#1e40af', fontSize: 12 },
-  input: {
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#fff',
-    textAlignVertical: 'top',
-  },
-  btnRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  primary: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  primaryText: { color: '#fff', fontWeight: '600' },
-  secondary: {
-    backgroundColor: '#e5e7eb',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  secondaryText: { color: '#111827', fontWeight: '600' },
-  linkRow: { flexDirection: 'row', gap: 14, marginTop: 10 },
-  link: { color: '#2563eb', fontWeight: '500' },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: c.bg },
+    container: { padding: 16, gap: 10 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg },
+    muted: { color: c.textMuted },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    title: { fontSize: 20, fontWeight: '700', color: c.text, flex: 1 },
+    meta: { color: c.textMuted, fontSize: 12, marginBottom: 4 },
+    card: {
+      backgroundColor: c.surface,
+      padding: 14,
+      borderRadius: 10,
+      borderColor: c.borderSubtle,
+      borderWidth: 1,
+    },
+    sectionTitle: { fontWeight: '600', color: c.text, marginBottom: 6 },
+    fact: { color: c.textSecondary, marginTop: 2 },
+    pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    pill: {
+      backgroundColor: c.pillBg,
+      borderColor: c.pillBorder,
+      borderWidth: 1,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    pillText: { color: c.pillText, fontSize: 12 },
+    input: {
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: c.inputBg,
+      color: c.text,
+      textAlignVertical: 'top',
+    },
+    btnRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    primary: {
+      backgroundColor: c.primary,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+    },
+    primaryText: { color: c.onPrimary, fontWeight: '600' },
+    secondary: {
+      backgroundColor: c.borderSubtle,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+    },
+    secondaryText: { color: c.text, fontWeight: '600' },
+    linkRow: { flexDirection: 'row', gap: 14, marginTop: 10 },
+    link: { color: c.link, fontWeight: '500' },
+  });

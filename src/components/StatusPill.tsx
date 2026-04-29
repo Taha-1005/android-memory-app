@@ -1,21 +1,32 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+import type { ThemeColors } from '../theme/theme';
 
 interface Props {
   label: string;
   tone?: 'neutral' | 'ok' | 'warn' | 'err' | 'info';
 }
 
-const tones: Record<NonNullable<Props['tone']>, { bg: string; fg: string }> = {
-  neutral: { bg: '#e5e7eb', fg: '#374151' },
-  ok: { bg: '#d1fae5', fg: '#065f46' },
-  warn: { bg: '#fef3c7', fg: '#92400e' },
-  err: { bg: '#fee2e2', fg: '#991b1b' },
-  info: { bg: '#dbeafe', fg: '#1e40af' },
-};
+function tonePair(c: ThemeColors, tone: NonNullable<Props['tone']>): { bg: string; fg: string } {
+  switch (tone) {
+    case 'ok':
+      return { bg: c.toneOkBg, fg: c.toneOkFg };
+    case 'warn':
+      return { bg: c.toneWarnBg, fg: c.toneWarnFg };
+    case 'err':
+      return { bg: c.toneErrBg, fg: c.toneErrFg };
+    case 'info':
+      return { bg: c.toneInfoBg, fg: c.toneInfoFg };
+    case 'neutral':
+    default:
+      return { bg: c.toneNeutralBg, fg: c.toneNeutralFg };
+  }
+}
 
 export function StatusPill({ label, tone = 'neutral' }: Props): React.JSX.Element {
-  const t = tones[tone];
+  const { colors } = useTheme();
+  const t = tonePair(colors, tone);
   return (
     <View style={[styles.pill, { backgroundColor: t.bg }]}>
       <Text style={[styles.text, { color: t.fg }]}>{label}</Text>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TextStyle } from 'react-native';
 import { slugify } from '../domain/slugify';
+import { useTheme } from '../theme/ThemeContext';
 
 interface Props {
   text: string;
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export function WikiBody({ text, onOpen, style }: Props): React.JSX.Element {
+  const { colors } = useTheme();
   const parts: Array<{ t: 'text' | 'link'; v: string }> = [];
   const re = /\[\[([^\]]+)\]\]/g;
   let last = 0;
@@ -20,13 +22,13 @@ export function WikiBody({ text, onOpen, style }: Props): React.JSX.Element {
   }
   if (last < text.length) parts.push({ t: 'text', v: text.slice(last) });
   return (
-    <Text style={[styles.body, style]}>
+    <Text style={[styles.body, { color: colors.text }, style]}>
       {parts.map((p, i) =>
         p.t === 'link' ? (
           <Text
             key={i}
             onPress={() => onOpen(slugify(p.v), p.v)}
-            style={styles.link}
+            style={[styles.link, { color: colors.link }]}
             accessibilityRole="link"
             accessibilityLabel={`Open page ${p.v}`}
           >
@@ -44,10 +46,8 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#1f2937',
   },
   link: {
-    color: '#2563eb',
     textDecorationLine: 'underline',
   },
 });
