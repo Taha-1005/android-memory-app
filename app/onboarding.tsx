@@ -13,28 +13,12 @@ import { useRouter } from 'expo-router';
 import { ErrorBanner } from '../src/components/ErrorBanner';
 import { setApiKeyFor, setProvider } from '../src/secure/apiKey';
 import { probeProviderKey, Provider } from '../src/llm/provider';
-
-const PROVIDER_LABEL: Record<Provider, string> = {
-  anthropic: 'Anthropic Claude',
-  gemini: 'Google Gemini (free)',
-};
-
-const PROVIDER_KEY_HINT: Record<Provider, string> = {
-  anthropic: 'sk-ant-…',
-  gemini: 'AIza…',
-};
-
-const PROVIDER_KEY_URL: Record<Provider, string> = {
-  anthropic: 'https://console.anthropic.com/settings/keys',
-  gemini: 'https://aistudio.google.com/apikey',
-};
-
-const PROVIDER_BLURB: Record<Provider, string> = {
-  anthropic:
-    'Pay-as-you-go Anthropic API. Highest answer quality; small per-request charge.',
-  gemini:
-    'Google AI Studio free tier. Rate-limited (10 req/min on Flash) but $0 to use.',
-};
+import {
+  PROVIDER_BLURB,
+  PROVIDER_KEY_HINT,
+  PROVIDER_KEY_URL,
+  PROVIDER_LABEL,
+} from '../src/llm/providerInfo';
 
 export default function Onboarding(): React.JSX.Element {
   const router = useRouter();

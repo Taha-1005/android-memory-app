@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -16,38 +17,41 @@ import { ErrorBanner } from '../src/components/ErrorBanner';
 import {
   clearApiKeyFor,
   getApiKeyFor,
+  getCrossCheckEnabled,
   getModelFor,
   getProvider,
   maskKey,
   setApiKeyFor,
+  setCrossCheckEnabled,
   setModelFor,
   setProvider,
 } from '../src/secure/apiKey';
 import { probeProviderKey, defaultModelFor, Provider } from '../src/llm/provider';
+import {
+  PROVIDER_KEY_HINT,
+  PROVIDER_KEY_URL,
+  PROVIDER_LABEL,
+} from '../src/llm/providerInfo';
 import { FREE_GEMINI_MODELS } from '../src/llm/geminiClient';
 import { applyImport, buildExport, parseImport } from '../src/services/exportImport';
 import { getDb } from '../src/db/client';
 import { listPages, deletePage, upsertPage, getPage } from '../src/db/repositories/pages';
 import { computeLint } from '../src/domain/lint';
-import { WikiPage } from '../src/domain/types';
+import {
+  ChatTurn,
+  DuplicateGroup,
+  DuplicateScanReport,
+  WikiPage,
+} from '../src/domain/types';
 import { runMerge } from '../src/llm/merge';
+import {
+  maybeCompressHistory,
+  runDuplicateChat,
+  runDuplicateScan,
+} from '../src/llm/duplicates';
 import { mergePage } from '../src/domain/mergePage';
 import { slugify } from '../src/domain/slugify';
-
-const PROVIDER_LABEL: Record<Provider, string> = {
-  anthropic: 'Anthropic Claude',
-  gemini: 'Google Gemini (free)',
-};
-
-const PROVIDER_KEY_HINT: Record<Provider, string> = {
-  anthropic: 'sk-ant-…',
-  gemini: 'AIza… (Google AI Studio)',
-};
-
-const PROVIDER_KEY_URL: Record<Provider, string> = {
-  anthropic: 'https://console.anthropic.com/settings/keys',
-  gemini: 'https://aistudio.google.com/apikey',
-};
+import { planRename } from '../src/domain/renamePage';
 
 export default function SettingsScreen(): React.JSX.Element {
   const router = useRouter();
@@ -61,12 +65,19 @@ export default function SettingsScreen(): React.JSX.Element {
   const [lint, setLint] = useState<ReturnType<typeof computeLint> | null>(null);
   const [pages, setPages] = useState<WikiPage[]>([]);
   const [importText, setImportText] = useState('');
+  const [crossCheck, setCrossCheck] = useState(false);
+  const [scanReport, setScanReport] = useState<DuplicateScanReport | null>(null);
+  const [scanBusy, setScanBusy] = useState(false);
+  const [chatHistory, setChatHistory] = useState<ChatTurn[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatBusy, setChatBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     const p = await getProvider();
     setProviderLocal(p);
     setKey(await getApiKeyFor(p));
     setModelLocal(await getModelFor(p));
+    setCrossCheck(await getCrossCheckEnabled());
     const db = getDb();
     const all = await listPages(db);
     setPages(all);
@@ -157,36 +168,159 @@ export default function SettingsScreen(): React.JSX.Element {
     }
   };
 
-  const onMergeDupes = async (group: WikiPage[]) => {
+  const onAiScan = async () => {
+    setError(null);
+    setStatus(null);
+    if (!key) {
+      setError(`API key required for ${PROVIDER_LABEL[provider]} to scan for duplicates.`);
+      return;
+    }
+    setScanBusy(true);
+    try {
+      const report = await runDuplicateScan(pages, { provider, apiKey: key, model });
+      setScanReport(report);
+      setChatHistory([]);
+      setStatus(
+        report.groups.length
+          ? `AI flagged ${report.groups.length} duplicate group${report.groups.length === 1 ? '' : 's'}.`
+          : 'AI found no duplicates.',
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setScanBusy(false);
+    }
+  };
+
+  const onMergeGroup = async (group: DuplicateGroup) => {
     if (!key) {
       setError(`API key required for ${PROVIDER_LABEL[provider]} to run merge.`);
       return;
     }
-    if (group.length < 2) return;
+    const db = getDb();
+    const resolved: WikiPage[] = [];
+    for (const slug of group.slugs) {
+      const p = await getPage(db, slug);
+      if (p) resolved.push(p);
+    }
+    if (resolved.length < 2) {
+      setError('Merge needs at least two existing pages.');
+      return;
+    }
     setBusy(true);
     try {
-      const db = getDb();
-      let current: WikiPage = group[0];
-      for (let i = 1; i < group.length; i++) {
-        const incoming = await runMerge(current, group[i], {
-          provider,
-          apiKey: key,
-          model,
-        });
+      let current: WikiPage = resolved[0];
+      for (let i = 1; i < resolved.length; i++) {
+        const incoming = await runMerge(current, resolved[i], { provider, apiKey: key, model });
         const existing = await getPage(db, slugify(incoming.title));
         current = mergePage(existing, incoming, null);
         await upsertPage(db, current);
       }
-      for (const p of group) {
+      for (const p of resolved) {
         if (p.slug !== current.slug) await deletePage(db, p.slug);
       }
-      setStatus(`Merged ${group.length} pages into ${current.title}.`);
+      setStatus(`Merged ${resolved.length} pages into ${current.title}.`);
+      setScanReport((prev) =>
+        prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
+      );
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
+  };
+
+  const onApplyDisambiguation = async (group: DuplicateGroup) => {
+    if (!group.suggestions.length) {
+      setError('No suggested edits in this group.');
+      return;
+    }
+    const db = getDb();
+    setBusy(true);
+    try {
+      let applied = 0;
+      for (const sug of group.suggestions) {
+        const existing = await getPage(db, sug.slug);
+        if (!existing) continue;
+        const newTitle = sug.newTitle?.trim() || existing.title;
+        const newSlug = slugify(newTitle);
+        const collision =
+          newSlug !== existing.slug ? await getPage(db, newSlug) : null;
+        const others = await listPages(db);
+        try {
+          const plan = planRename(
+            existing,
+            { newTitle, newBody: sug.newBody, newFacts: sug.newFacts },
+            others,
+            collision,
+          );
+          await upsertPage(db, plan.renamed);
+          if (plan.slugChanged) await deletePage(db, existing.slug);
+          for (const ref of plan.rewrittenReferers) await upsertPage(db, ref);
+          applied++;
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e));
+        }
+      }
+      setStatus(`Applied disambiguation to ${applied} page${applied === 1 ? '' : 's'}.`);
+      setScanReport((prev) =>
+        prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
+      );
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onIgnoreGroup = (group: DuplicateGroup) => {
+    setScanReport((prev) =>
+      prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
+    );
+  };
+
+  const onSendChat = async () => {
+    const trimmed = chatInput.trim();
+    if (!trimmed || !scanReport) return;
+    if (!key) {
+      setError(`API key required for ${PROVIDER_LABEL[provider]}.`);
+      return;
+    }
+    setChatBusy(true);
+    setChatInput('');
+    // Compress the PRIOR history (without the new user turn), then append the
+    // user turn once. Without this split the latest message would appear both
+    // in the transcript AND in any summary that compression produced.
+    const userTurn: ChatTurn = { role: 'user', content: trimmed };
+    try {
+      const compressed = await maybeCompressHistory(chatHistory, {
+        provider,
+        apiKey: key,
+        model,
+      });
+      const historyForCall: ChatTurn[] = [...compressed, userTurn];
+      setChatHistory(historyForCall);
+      const res = await runDuplicateChat({
+        report: scanReport,
+        pages,
+        history: historyForCall,
+        opts: { provider, apiKey: key, model },
+      });
+      const replyTurn: ChatTurn = { role: 'assistant', content: res.reply };
+      setChatHistory([...historyForCall, replyTurn]);
+      if (res.revisedReport) setScanReport(res.revisedReport);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChatBusy(false);
+    }
+  };
+
+  const onToggleCrossCheck = async (v: boolean) => {
+    setCrossCheck(v);
+    await setCrossCheckEnabled(v);
   };
 
   const onDeleteOrphan = (p: WikiPage) => {
@@ -272,20 +406,33 @@ export default function SettingsScreen(): React.JSX.Element {
           ))}
         </View>
       ) : null}
-      <TextInput
-        value={model}
-        onChangeText={onChangeModel}
-        autoCapitalize="none"
-        style={styles.input}
-      />
-      <View style={styles.btnRow}>
-        <Pressable onPress={onResetModel} style={styles.secondary}>
-          <Text style={styles.secondaryText}>Reset to default</Text>
-        </Pressable>
-      </View>
-      <Text style={styles.hint}>
-        Default for {PROVIDER_LABEL[provider]}: {defaultModelFor(provider)}.
-      </Text>
+      {provider === 'anthropic' ? (
+        <View style={styles.lockedModel}>
+          <Text style={styles.lockedModelLabel}>Model</Text>
+          <Text style={styles.lockedModelValue}>{defaultModelFor('anthropic')}</Text>
+          <Text style={styles.hint}>
+            All Claude calls in this project use Sonnet 4.6. Model selection is
+            disabled for Anthropic.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <TextInput
+            value={model}
+            onChangeText={onChangeModel}
+            autoCapitalize="none"
+            style={styles.input}
+          />
+          <View style={styles.btnRow}>
+            <Pressable onPress={onResetModel} style={styles.secondary}>
+              <Text style={styles.secondaryText}>Reset to default</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.hint}>
+            Default for {PROVIDER_LABEL[provider]}: {defaultModelFor(provider)}.
+          </Text>
+        </>
+      )}
 
       <Text style={styles.h1}>Export / Import</Text>
       <Pressable onPress={onExport} style={styles.exportCard}>
@@ -311,20 +458,74 @@ export default function SettingsScreen(): React.JSX.Element {
         <StatCell label="Dupes" value={lint?.duplicateGroups.length ?? 0} warn={(lint?.duplicateGroups.length ?? 0) > 0} />
       </View>
 
-      {lint?.duplicateGroups.length ? (
-        <>
-          <Text style={styles.h2}>Duplicate candidates</Text>
-          {lint.duplicateGroups.map((g, i) => (
-            <View key={i} style={styles.card}>
-              {g.map((p) => (
-                <Text key={p.slug} style={styles.dupItem}>• {p.title}</Text>
-              ))}
-              <Pressable onPress={() => onMergeDupes(g)} style={styles.primary}>
-                <Text style={styles.primaryText}>Merge with {PROVIDER_LABEL[provider]}</Text>
-              </Pressable>
-            </View>
-          ))}
-        </>
+      <Text style={styles.h1}>Duplicate detection</Text>
+      <View style={styles.switchRow}>
+        <Switch value={crossCheck} onValueChange={onToggleCrossCheck} disabled={!key} />
+        <Text style={styles.switchLabel}>Cross-check new entries with AI before saving</Text>
+      </View>
+      <Text style={styles.hint}>
+        When enabled, each ingested page is compared against the existing wiki and
+        you'll be prompted before duplicates are inserted.
+      </Text>
+      <Pressable
+        onPress={onAiScan}
+        style={[styles.primary, scanBusy && styles.primaryDisabled]}
+        disabled={scanBusy || !key}
+      >
+        <Text style={styles.primaryText}>
+          {scanBusy ? 'Scanning…' : 'Scan for duplicates with AI'}
+        </Text>
+      </Pressable>
+
+      {scanReport ? (
+        <View style={styles.card}>
+          {scanReport.notes ? <Text style={styles.dupNote}>{scanReport.notes}</Text> : null}
+          {scanReport.groups.length === 0 ? (
+            <Text style={styles.dupItem}>No duplicate groups remain.</Text>
+          ) : (
+            scanReport.groups.map((g, i) => (
+              <DupGroupCard
+                key={`${i}-${g.slugs.join('|')}`}
+                group={g}
+                onMerge={() => onMergeGroup(g)}
+                onApply={() => onApplyDisambiguation(g)}
+                onIgnore={() => onIgnoreGroup(g)}
+              />
+            ))
+          )}
+
+          <Text style={styles.h2}>Discuss the plan</Text>
+          {chatHistory.length === 0 ? (
+            <Text style={styles.hint}>
+              Ask the AI to revisit a group, give it more context (e.g. "those two
+              socks are different pairs"), or request alternative wording.
+            </Text>
+          ) : (
+            chatHistory.map((t, i) => (
+              <View
+                key={i}
+                style={[styles.chatBubble, t.role === 'user' ? styles.chatUser : styles.chatAi]}
+              >
+                <Text style={styles.chatBubbleText}>{t.content}</Text>
+              </View>
+            ))
+          )}
+          <TextInput
+            value={chatInput}
+            onChangeText={setChatInput}
+            placeholder="Message the AI about this plan…"
+            multiline
+            style={[styles.input, { minHeight: 60 }]}
+            editable={!chatBusy}
+          />
+          <Pressable
+            onPress={onSendChat}
+            style={[styles.secondary, (chatBusy || !chatInput.trim()) && styles.primaryDisabled]}
+            disabled={chatBusy || !chatInput.trim()}
+          >
+            <Text style={styles.secondaryText}>{chatBusy ? 'Thinking…' : 'Send'}</Text>
+          </Pressable>
+        </View>
       ) : null}
 
       {lint?.orphans.length ? (
@@ -351,6 +552,59 @@ function StatCell({ label, value, warn }: { label: string; value: number; warn: 
     <View style={[styles.stat, warn && styles.statWarn]}>
       <Text style={[styles.statValue, warn && styles.statValueWarn]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function DupGroupCard({
+  group,
+  onMerge,
+  onApply,
+  onIgnore,
+}: {
+  group: DuplicateGroup;
+  onMerge: () => void;
+  onApply: () => void;
+  onIgnore: () => void;
+}): React.JSX.Element {
+  return (
+    <View style={styles.dupGroup}>
+      {group.slugs.map((s) => (
+        <Text key={s} style={styles.dupItem}>• {s}</Text>
+      ))}
+      <Text style={styles.dupRec}>Recommendation: {group.recommendation}</Text>
+      {group.reason ? <Text style={styles.dupReason}>{group.reason}</Text> : null}
+      {group.suggestions.map((sug) => (
+        <View key={sug.slug} style={styles.dupSuggestion}>
+          <Text style={styles.dupSuggestionTitle}>{sug.slug}</Text>
+          {sug.newTitle ? (
+            <Text style={styles.dupSuggestionLine}>title → {sug.newTitle}</Text>
+          ) : null}
+          {sug.newBody ? (
+            <Text style={styles.dupSuggestionLine}>body → {sug.newBody}</Text>
+          ) : null}
+          {sug.newFacts?.length ? (
+            <Text style={styles.dupSuggestionLine}>
+              facts → {sug.newFacts.join('; ')}
+            </Text>
+          ) : null}
+        </View>
+      ))}
+      <View style={styles.btnRow}>
+        {group.recommendation === 'merge' ? (
+          <Pressable onPress={onMerge} style={styles.primary}>
+            <Text style={styles.primaryText}>Merge</Text>
+          </Pressable>
+        ) : null}
+        {group.recommendation === 'disambiguate' && group.suggestions.length ? (
+          <Pressable onPress={onApply} style={styles.primary}>
+            <Text style={styles.primaryText}>Apply suggested edits</Text>
+          </Pressable>
+        ) : null}
+        <Pressable onPress={onIgnore} style={styles.secondary}>
+          <Text style={styles.secondaryText}>Ignore</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -413,6 +667,16 @@ const styles = StyleSheet.create({
   modelBtnActive: { backgroundColor: '#1f2937', borderColor: '#1f2937' },
   modelText: { color: '#374151', fontSize: 12 },
   modelTextActive: { color: '#fff' },
+  lockedModel: {
+    backgroundColor: '#fff',
+    borderColor: '#e5e7eb',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    gap: 4,
+  },
+  lockedModelLabel: { color: '#6b7280', fontSize: 12, textTransform: 'uppercase' },
+  lockedModelValue: { fontFamily: 'Menlo', color: '#111827', fontWeight: '600' },
   exportCard: {
     backgroundColor: '#2563eb',
     padding: 14,
@@ -442,6 +706,37 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dupItem: { color: '#374151' },
+  dupNote: { color: '#374151', fontStyle: 'italic', marginBottom: 4 },
+  dupGroup: {
+    borderTopColor: '#e5e7eb',
+    borderTopWidth: 1,
+    paddingTop: 8,
+    marginTop: 8,
+    gap: 4,
+  },
+  dupRec: { color: '#111827', fontWeight: '700', marginTop: 4 },
+  dupReason: { color: '#374151' },
+  dupSuggestion: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 6,
+    padding: 8,
+    gap: 2,
+    marginTop: 4,
+  },
+  dupSuggestionTitle: { color: '#111827', fontWeight: '600' },
+  dupSuggestionLine: { color: '#374151', fontSize: 12 },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
+  switchLabel: { color: '#374151' },
+  primaryDisabled: { backgroundColor: '#93c5fd' },
+  chatBubble: {
+    padding: 8,
+    borderRadius: 8,
+    marginVertical: 2,
+    maxWidth: '90%',
+  },
+  chatUser: { backgroundColor: '#dbeafe', alignSelf: 'flex-end' },
+  chatAi: { backgroundColor: '#f3f4f6', alignSelf: 'flex-start' },
+  chatBubbleText: { color: '#111827' },
   orphanRow: {
     flexDirection: 'row',
     alignItems: 'center',

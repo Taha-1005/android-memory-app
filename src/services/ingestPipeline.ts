@@ -35,7 +35,24 @@ export async function saveSource(params: {
   return entry;
 }
 
-export async function processSource(logId: string): Promise<number> {
+export interface IngestPrep {
+  incoming: IncomingPage[];
+  sourceSlug: string;
+}
+
+export interface IngestDecision {
+  page: IncomingPage;
+  skip: boolean;
+}
+
+/**
+ * Phase 1 of ingestion: run the LLM and return candidate pages without
+ * upserting. The caller is responsible for invoking applyIngestResults
+ * (or markIngestFailed on error) so the source_log row reaches a
+ * terminal state. Splitting the pipeline lets callers insert a duplicate
+ * cross-check between the LLM call and the upsert loop.
+ */
+export async function runIngestForLog(logId: string): Promise<IngestPrep> {
   const db = getDb();
   const provider = await getProvider();
   const apiKey = await getApiKey();
@@ -67,31 +84,52 @@ export async function processSource(logId: string): Promise<number> {
 
     const sourcePage = incoming.find((p) => p.kind === 'source');
     const sourceSlug = sourcePage ? slugify(sourcePage.title) : row.slug;
+    return { incoming, sourceSlug };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await updateLog(db, logId, { processing: false, processed: false, error: msg });
+    throw e;
+  }
+}
 
-    for (const p of incoming) {
-      const slug = slugify(p.title);
+export async function applyIngestResults(
+  logId: string,
+  prep: IngestPrep,
+  decisions: IngestDecision[],
+): Promise<number> {
+  const db = getDb();
+  let written = 0;
+  try {
+    for (const { page, skip } of decisions) {
+      if (skip) continue;
+      const slug = slugify(page.title);
       const existing = await getPage(db, slug);
-      const merged = mergePage(existing, p, sourceSlug);
+      const merged = mergePage(existing, page, prep.sourceSlug);
       await upsertPage(db, merged);
+      written++;
     }
-
     await updateLog(db, logId, {
       processing: false,
       processed: true,
       processedAt: nowIso(),
-      pagesCreated: incoming.length,
+      pagesCreated: written,
       error: null,
     });
-    return incoming.length;
+    return written;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    await updateLog(db, logId, {
-      processing: false,
-      processed: false,
-      error: msg,
-    });
+    await updateLog(db, logId, { processing: false, processed: false, error: msg });
     throw e;
   }
+}
+
+export async function processSource(logId: string): Promise<number> {
+  const prep = await runIngestForLog(logId);
+  return applyIngestResults(
+    logId,
+    prep,
+    prep.incoming.map((page) => ({ page, skip: false })),
+  );
 }
 
 export async function fileAnswerAsPage(params: {

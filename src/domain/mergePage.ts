@@ -24,7 +24,11 @@ export function mergePage(
   }
   return {
     ...existing,
-    kind: existing.kind === 'source' ? 'source' : incoming.kind,
+    kind: existing.userEdited
+      ? existing.kind
+      : existing.kind === 'source'
+        ? 'source'
+        : incoming.kind,
     body: existing.userEdited ? existing.body : incoming.body || existing.body,
     facts: Array.from(new Set([...existing.facts, ...incoming.facts])),
     links: Array.from(new Set([...existing.links, ...incoming.links])),
