@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -29,9 +29,13 @@ import { runDuplicateCheck } from '../../src/llm/duplicates';
 import { listPages } from '../../src/db/repositories/pages';
 import { getDb } from '../../src/db/client';
 import { DuplicateCheckResult, IncomingPage } from '../../src/domain/types';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ThemeColors } from '../../src/theme/theme';
 
 export default function AddScreen(): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [mode, setMode] = useState<'text' | 'url'>('text');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -215,6 +219,7 @@ export default function AddScreen(): React.JSX.Element {
           value={title}
           onChangeText={setTitle}
           placeholder="Give this source a short name"
+          placeholderTextColor={colors.textMuted}
           style={styles.input}
           accessibilityLabel="Title"
         />
@@ -226,6 +231,7 @@ export default function AddScreen(): React.JSX.Element {
               value={content}
               onChangeText={setContent}
               placeholder="Paste the text you want Claude to ingest…"
+              placeholderTextColor={colors.textMuted}
               multiline
               style={[styles.input, styles.textarea]}
               accessibilityLabel="Source content"
@@ -383,123 +389,125 @@ export default function AddScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#f9fafb' },
-  container: { padding: 16, gap: 8 },
-  segment: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 8, padding: 4 },
-  segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
-  segmentBtnActive: { backgroundColor: '#fff' },
-  segmentText: { color: '#6b7280', fontWeight: '500' },
-  segmentTextActive: { color: '#111827' },
-  label: { fontSize: 13, color: '#374151', marginTop: 10 },
-  input: {
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#fff',
-    fontSize: 15,
-  },
-  textarea: { minHeight: 160, textAlignVertical: 'top' },
-  hint: { fontSize: 12, color: '#6b7280' },
-  warn: { fontSize: 12, color: '#92400e', marginTop: 4 },
-  comingSoon: {
-    backgroundColor: '#fff',
-    borderColor: '#fde68a',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
-    gap: 8,
-    marginTop: 8,
-  },
-  comingSoonBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#fde68a',
-    color: '#92400e',
-    fontSize: 11,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  comingSoonTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  comingSoonBody: { color: '#374151', fontSize: 13, lineHeight: 18 },
-  comingSoonBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#111827',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  comingSoonBtnText: { color: '#fff', fontWeight: '600' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12 },
-  switchLabel: { color: '#374151' },
-  primary: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryDisabled: { backgroundColor: '#93c5fd' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  keyBanner: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a',
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  keyBannerText: { color: '#92400e', fontSize: 13, lineHeight: 18 },
-  btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  secondary: {
-    backgroundColor: '#e5e7eb',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  secondaryText: { color: '#111827', fontWeight: '600' },
-  dupePanel: {
-    backgroundColor: '#fff',
-    borderColor: '#fde68a',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
-    gap: 8,
-  },
-  dupePanelTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  dupePanelHint: { color: '#6b7280', fontSize: 12 },
-  dupeCard: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 10,
-    gap: 4,
-  },
-  dupeCardTitle: { fontWeight: '700', color: '#111827' },
-  dupeStatus: { color: '#374151', fontSize: 13 },
-  dupeReason: { color: '#374151' },
-  dupeQuestion: { color: '#374151', fontSize: 13 },
-  dupeSuggestion: {
-    backgroundColor: '#eef2ff',
-    borderRadius: 6,
-    padding: 8,
-    gap: 2,
-  },
-  dupeSuggestionTitle: { color: '#3730a3', fontWeight: '600' },
-  dupeSuggestionLine: { color: '#3730a3', fontSize: 12 },
-  dupeBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: '#fff',
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-  },
-  dupeBtnActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  dupeBtnText: { color: '#374151', fontSize: 12, fontWeight: '600' },
-  dupeBtnTextActive: { color: '#fff' },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: c.bg },
+    container: { padding: 16, gap: 8 },
+    segment: { flexDirection: 'row', backgroundColor: c.segmentBg, borderRadius: 8, padding: 4 },
+    segmentBtn: { flex: 1, paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
+    segmentBtnActive: { backgroundColor: c.segmentBtnActiveBg },
+    segmentText: { color: c.textMuted, fontWeight: '500' },
+    segmentTextActive: { color: c.text },
+    label: { fontSize: 13, color: c.textSecondary, marginTop: 10 },
+    input: {
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: c.inputBg,
+      color: c.text,
+      fontSize: 15,
+    },
+    textarea: { minHeight: 160, textAlignVertical: 'top' },
+    hint: { fontSize: 12, color: c.textMuted },
+    warn: { fontSize: 12, color: c.warnBannerText, marginTop: 4 },
+    comingSoon: {
+      backgroundColor: c.surface,
+      borderColor: c.warnBannerBorder,
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 14,
+      gap: 8,
+      marginTop: 8,
+    },
+    comingSoonBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.warnBannerBorder,
+      color: c.warnBannerText,
+      fontSize: 11,
+      fontWeight: '700',
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      overflow: 'hidden',
+    },
+    comingSoonTitle: { fontSize: 16, fontWeight: '700', color: c.text },
+    comingSoonBody: { color: c.textSecondary, fontSize: 13, lineHeight: 18 },
+    comingSoonBtn: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.text,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      marginTop: 4,
+    },
+    comingSoonBtnText: { color: c.bg, fontWeight: '600' },
+    switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 12 },
+    switchLabel: { color: c.textSecondary },
+    primary: {
+      backgroundColor: c.primary,
+      paddingVertical: 14,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    primaryDisabled: { backgroundColor: c.primaryDisabled },
+    primaryText: { color: c.onPrimary, fontSize: 16, fontWeight: '600' },
+    keyBanner: {
+      backgroundColor: c.warnBannerBg,
+      borderColor: c.warnBannerBorder,
+      borderWidth: 1,
+      padding: 12,
+      borderRadius: 8,
+      marginTop: 8,
+    },
+    keyBannerText: { color: c.warnBannerText, fontSize: 13, lineHeight: 18 },
+    btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+    secondary: {
+      backgroundColor: c.borderSubtle,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+    },
+    secondaryText: { color: c.text, fontWeight: '600' },
+    dupePanel: {
+      backgroundColor: c.surface,
+      borderColor: c.warnBannerBorder,
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 8,
+      gap: 8,
+    },
+    dupePanelTitle: { fontSize: 16, fontWeight: '700', color: c.text },
+    dupePanelHint: { color: c.textMuted, fontSize: 12 },
+    dupeCard: {
+      backgroundColor: c.bg,
+      borderRadius: 8,
+      padding: 10,
+      gap: 4,
+    },
+    dupeCardTitle: { fontWeight: '700', color: c.text },
+    dupeStatus: { color: c.textSecondary, fontSize: 13 },
+    dupeReason: { color: c.textSecondary },
+    dupeQuestion: { color: c.textSecondary, fontSize: 13 },
+    dupeSuggestion: {
+      backgroundColor: c.toneInfoBg,
+      borderRadius: 6,
+      padding: 8,
+      gap: 2,
+    },
+    dupeSuggestionTitle: { color: c.toneInfoFg, fontWeight: '600' },
+    dupeSuggestionLine: { color: c.toneInfoFg, fontSize: 12 },
+    dupeBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 6,
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderWidth: 1,
+    },
+    dupeBtnActive: { backgroundColor: c.primary, borderColor: c.primary },
+    dupeBtnText: { color: c.textSecondary, fontSize: 12, fontWeight: '600' },
+    dupeBtnTextActive: { color: c.onPrimary },
+  });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -20,9 +20,13 @@ import { getApiKey, getModel, getProvider } from '../../src/secure/apiKey';
 import { QueryResult } from '../../src/domain/types';
 import { fileAnswerAsPage } from '../../src/services/ingestPipeline';
 import { slugify } from '../../src/domain/slugify';
+import { useTheme } from '../../src/theme/ThemeContext';
+import type { ThemeColors } from '../../src/theme/theme';
 
 export default function AskScreen(): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +91,7 @@ export default function AskScreen(): React.JSX.Element {
         value={q}
         onChangeText={setQ}
         placeholder="What does my wiki say about…?"
+        placeholderTextColor={colors.textMuted}
         multiline
         style={styles.input}
         accessibilityLabel="Question"
@@ -100,7 +105,7 @@ export default function AskScreen(): React.JSX.Element {
         <Text style={styles.primaryText}>{loading ? 'Thinking…' : 'Ask'}</Text>
       </Pressable>
 
-      {loading ? <ActivityIndicator style={{ marginTop: 16 }} /> : null}
+      {loading ? <ActivityIndicator style={{ marginTop: 16 }} color={colors.primary} /> : null}
       <ErrorBanner message={error} />
 
       {result ? (
@@ -141,6 +146,7 @@ export default function AskScreen(): React.JSX.Element {
               onChangeText={setFileTitle}
               style={styles.input}
               placeholder="Page title"
+              placeholderTextColor={colors.textMuted}
               accessibilityLabel="Page title"
             />
             <View style={styles.kindRow}>
@@ -174,82 +180,91 @@ export default function AskScreen(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#f9fafb' },
-  container: { padding: 16, gap: 8 },
-  label: { color: '#374151', marginBottom: 4 },
-  input: {
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#fff',
-    fontSize: 15,
-    minHeight: 48,
-    textAlignVertical: 'top',
-  },
-  primary: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  primaryDisabled: { backgroundColor: '#93c5fd' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  resultCard: { marginTop: 16, backgroundColor: '#fff', padding: 14, borderRadius: 10 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  meta: { color: '#6b7280', fontSize: 12 },
-  citedWrap: { marginTop: 12 },
-  citedTitle: { fontWeight: '600', color: '#111827', marginBottom: 6 },
-  citedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  pill: {
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  pillText: { color: '#1e40af', fontSize: 12 },
-  fileBackCard: {
-    backgroundColor: '#fef3c7',
-    borderColor: '#fde68a',
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 16,
-    gap: 6,
-  },
-  fileBackTitle: { fontWeight: '600', color: '#78350f' },
-  fileBackWarn: { color: '#92400e', fontSize: 12 },
-  kindRow: { flexDirection: 'row', gap: 6 },
-  kindBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-  },
-  kindBtnActive: { backgroundColor: '#92400e', borderColor: '#92400e' },
-  kindText: { color: '#374151', textTransform: 'capitalize' },
-  kindTextActive: { color: '#fff' },
-  secondary: {
-    backgroundColor: '#111827',
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  secondaryText: { color: '#fff', fontWeight: '600' },
-  successCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#d1fae5',
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 6,
-  },
-  successText: { color: '#065f46', fontWeight: '600' },
-  successLink: { color: '#065f46', textDecorationLine: 'underline' },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: c.bg },
+    container: { padding: 16, gap: 8 },
+    label: { color: c.textSecondary, marginBottom: 4 },
+    input: {
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: c.inputBg,
+      color: c.text,
+      fontSize: 15,
+      minHeight: 48,
+      textAlignVertical: 'top',
+    },
+    primary: {
+      backgroundColor: c.primary,
+      paddingVertical: 12,
+      borderRadius: 10,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    primaryDisabled: { backgroundColor: c.primaryDisabled },
+    primaryText: { color: c.onPrimary, fontSize: 16, fontWeight: '600' },
+    resultCard: {
+      marginTop: 16,
+      backgroundColor: c.surface,
+      padding: 14,
+      borderRadius: 10,
+      borderColor: c.borderSubtle,
+      borderWidth: 1,
+    },
+    row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    meta: { color: c.textMuted, fontSize: 12 },
+    citedWrap: { marginTop: 12 },
+    citedTitle: { fontWeight: '600', color: c.text, marginBottom: 6 },
+    citedRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    pill: {
+      backgroundColor: c.toneInfoBg,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+    },
+    pillText: { color: c.toneInfoFg, fontSize: 12 },
+    fileBackCard: {
+      backgroundColor: c.warnBannerBg,
+      borderColor: c.warnBannerBorder,
+      borderWidth: 1,
+      borderRadius: 10,
+      padding: 12,
+      marginTop: 16,
+      gap: 6,
+    },
+    fileBackTitle: { fontWeight: '600', color: c.warnBannerText },
+    fileBackWarn: { color: c.warnBannerText, fontSize: 12 },
+    kindRow: { flexDirection: 'row', gap: 6 },
+    kindBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderWidth: 1,
+    },
+    kindBtnActive: { backgroundColor: c.warnBannerText, borderColor: c.warnBannerText },
+    kindText: { color: c.textSecondary, textTransform: 'capitalize' },
+    kindTextActive: { color: c.onPrimary },
+    secondary: {
+      backgroundColor: c.text,
+      paddingVertical: 10,
+      borderRadius: 8,
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    secondaryText: { color: c.bg, fontWeight: '600' },
+    successCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: c.successBg,
+      padding: 8,
+      borderRadius: 6,
+      marginTop: 6,
+    },
+    successText: { color: c.successText, fontWeight: '600' },
+    successLink: { color: c.successText, textDecorationLine: 'underline' },
+  });

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { WikiPage } from '../domain/types';
 import { formatRelative } from '../utils/time';
 import { StatusPill } from './StatusPill';
+import { useTheme } from '../theme/ThemeContext';
+import type { ThemeColors } from '../theme/theme';
 
 interface Props {
   page: WikiPage;
@@ -19,6 +21,8 @@ const kindTone: Record<
 };
 
 export function PageCard({ page, onPress }: Props): React.JSX.Element {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable
       onPress={() => onPress(page.slug)}
@@ -37,23 +41,24 @@ export function PageCard({ page, onPress }: Props): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginVertical: 4,
-    borderColor: '#e5e7eb',
-    borderWidth: 1,
-  },
-  pressed: { opacity: 0.7 },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 8,
-  },
-  title: { fontSize: 16, fontWeight: '600', color: '#111827', flex: 1 },
-  meta: { fontSize: 12, color: '#6b7280' },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 10,
+      padding: 12,
+      marginVertical: 4,
+      borderColor: c.borderSubtle,
+      borderWidth: 1,
+    },
+    pressed: { opacity: 0.7 },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 4,
+      gap: 8,
+    },
+    title: { fontSize: 16, fontWeight: '600', color: c.text, flex: 1 },
+    meta: { fontSize: 12, color: c.textMuted },
+  });

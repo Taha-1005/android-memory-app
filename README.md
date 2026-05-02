@@ -210,6 +210,52 @@ apps" for the source, then tap **Install**.
 
 ---
 
+## Publishing the app — what's actually free
+
+Putting an app on the **official Google Play Store is not 100% free**: Google
+charges a **one-time $25 USD registration fee** for a Play developer account
+(no annual renewal). That fee covers unlimited apps under the same account.
+Beyond the registration, the Play Store itself takes no cut for free apps —
+only paid apps and in-app purchases incur a service fee.
+
+If you want **zero-dollar publishing**, skip Play Store and use one of these
+free distribution channels instead. They all install on stock Android via
+sideloading (Settings → Apps → "Install unknown apps").
+
+| Channel | Cost | Updates? | Notes |
+|---|---|---|---|
+| **GitHub Releases** (attach the APK to a tagged release) | $0 | manual or via Obtainium | Easiest for personal/internal sharing. Works out of the box with this repo. |
+| **F-Droid** | $0 | yes, via F-Droid client | Requires the project be 100% FOSS (no proprietary dependencies); apps are reproducibly built and signed by F-Droid. Submission is via a metadata PR. |
+| **IzzyOnDroid** | $0 | yes, via F-Droid client | Mirrors APKs you publish on GitHub Releases / GitLab. Less strict than F-Droid — accepts upstream-signed APKs. Faster path if F-Droid's reproducibility rules are too tight. |
+| **Obtainium** | $0 | yes, polls the source | A user-side updater that tracks GitHub Releases / F-Droid / others. Doesn't need any submission on your part — users add the URL themselves. |
+
+### Free tooling chain to actually build the APK
+
+You don't need any paid tools to produce an installable APK from this repo:
+
+| Tool | What it does | Free tier |
+|---|---|---|
+| **Expo / EAS CLI** | Cloud builds a signed APK or AAB from this Expo project. | EAS free plan: 30 Android builds/month. `eas build -p android --profile preview` is enough. |
+| **Local Gradle** (`npx expo prebuild` → `./gradlew assembleRelease`) | Builds the APK entirely on your machine, no EAS account needed. | Free (just needs Java + Android SDK). |
+| **GitHub Actions** | Run the same build in CI and attach the APK to a release. | 2,000 free minutes/month for public repos; unlimited on most public-repo workflows. |
+| **Android Studio** | IDE + emulator + signing tooling. | Free. |
+| **Java + Android command-line tools** | Required for local Gradle builds. | Free (OpenJDK + sdkmanager). |
+| **`apksigner` / `keytool`** | Generate a signing key and sign the APK for distribution. | Ship with the Android SDK; free. |
+
+### Quickest free path for this repo
+
+1. `eas build -p android --profile preview` — produces a shareable APK.
+2. `gh release create v0.1.0 ./path-to-app.apk --notes "First release"` —
+   uploads it to a GitHub release.
+3. Tell users to either tap the asset on the release page or add the repo
+   URL to **Obtainium** for auto-updates. Total cost: $0.
+
+If you later decide $25 is worth the Play Store reach, the same APK / AAB
+artifact (switch the profile to `production`) goes into the Play Console
+upload form.
+
+---
+
 ## First-run checklist
 
 1. Launch the app → onboarding asks you to pick a provider (Anthropic or
@@ -253,6 +299,23 @@ npm run bench:compare         # side-by-side compare of two result files
   `generativelanguage.googleapis.com` (Gemini). Nothing else.
 - Uninstalling the app wipes the stored keys and the SQLite database. No
   automatic cloud backup (`android.allowBackup` is `false` in `app.json`).
+
+---
+
+## Appearance (light / dark)
+
+The app ships with a built-in **light** and **dark** theme. Switch between
+them in **Settings → Appearance**:
+
+- **Light** — black-on-white surfaces, blue accents (default).
+- **Dark** — near-black background, light text, the same blue accent.
+- **System** — follows your phone's light/dark setting and flips automatically.
+
+The choice is persisted in `expo-secure-store` (key `theme_preference`), so it
+survives restarts. All screens — onboarding, tabs, the page detail, settings,
+and the modal stack — read their colours from a single `ThemeColors` palette
+exposed via `useTheme()` (see `src/theme/`), so adding a third theme is just
+a matter of supplying another palette.
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -52,9 +52,19 @@ import {
 import { mergePage } from '../src/domain/mergePage';
 import { slugify } from '../src/domain/slugify';
 import { planRename } from '../src/domain/renamePage';
+import { useTheme } from '../src/theme/ThemeContext';
+import type { ThemeColors, ThemePreference } from '../src/theme/theme';
+
+const APPEARANCE_LABEL: Record<ThemePreference, string> = {
+  light: 'Light',
+  dark: 'Dark',
+  system: 'System',
+};
 
 export default function SettingsScreen(): React.JSX.Element {
   const router = useRouter();
+  const { colors, preference, setPreference } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [provider, setProviderLocal] = useState<Provider>('anthropic');
   const [key, setKey] = useState<string | null>(null);
   const [newKey, setNewKey] = useState('');
@@ -340,6 +350,29 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
+      <Text style={styles.h1}>Appearance</Text>
+      <View style={styles.providerRow}>
+        {(['light', 'dark', 'system'] as const).map((p) => (
+          <Pressable
+            key={p}
+            onPress={() => void setPreference(p)}
+            style={[styles.providerBtn, preference === p && styles.providerBtnActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: preference === p }}
+          >
+            <Text
+              style={[styles.providerText, preference === p && styles.providerTextActive]}
+            >
+              {APPEARANCE_LABEL[p]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.hint}>
+        "System" follows your phone's light/dark setting. Changes apply
+        immediately.
+      </Text>
+
       <Text style={styles.h1}>Provider</Text>
       <View style={styles.providerRow}>
         {(['anthropic', 'gemini'] as const).map((p) => (
@@ -371,6 +404,7 @@ export default function SettingsScreen(): React.JSX.Element {
         value={newKey}
         onChangeText={setNewKey}
         placeholder={`Replace with new ${PROVIDER_KEY_HINT[provider]}`}
+        placeholderTextColor={colors.textMuted}
         secureTextEntry
         autoCapitalize="none"
         style={styles.input}
@@ -386,7 +420,7 @@ export default function SettingsScreen(): React.JSX.Element {
           <Text style={styles.secondaryText}>Remove</Text>
         </Pressable>
       </View>
-      {busy ? <ActivityIndicator style={{ marginTop: 6 }} /> : null}
+      {busy ? <ActivityIndicator style={{ marginTop: 6 }} color={colors.primary} /> : null}
       {status ? <Text style={styles.ok}>{status}</Text> : null}
       <ErrorBanner message={error} />
 
@@ -420,6 +454,7 @@ export default function SettingsScreen(): React.JSX.Element {
           <TextInput
             value={model}
             onChangeText={onChangeModel}
+            placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             style={styles.input}
           />
@@ -443,6 +478,7 @@ export default function SettingsScreen(): React.JSX.Element {
         value={importText}
         onChangeText={setImportText}
         placeholder="Paste exported JSON here…"
+        placeholderTextColor={colors.textMuted}
         multiline
         style={[styles.input, { minHeight: 100 }]}
       />
@@ -452,10 +488,10 @@ export default function SettingsScreen(): React.JSX.Element {
 
       <Text style={styles.h1}>Health</Text>
       <View style={styles.grid}>
-        <StatCell label="Pages" value={pages.length} warn={false} />
-        <StatCell label="Orphans" value={lint?.orphans.length ?? 0} warn={(lint?.orphans.length ?? 0) > 0} />
-        <StatCell label="Thin" value={lint?.thin.length ?? 0} warn={(lint?.thin.length ?? 0) > 0} />
-        <StatCell label="Dupes" value={lint?.duplicateGroups.length ?? 0} warn={(lint?.duplicateGroups.length ?? 0) > 0} />
+        <StatCell label="Pages" value={pages.length} warn={false} colors={colors} />
+        <StatCell label="Orphans" value={lint?.orphans.length ?? 0} warn={(lint?.orphans.length ?? 0) > 0} colors={colors} />
+        <StatCell label="Thin" value={lint?.thin.length ?? 0} warn={(lint?.thin.length ?? 0) > 0} colors={colors} />
+        <StatCell label="Dupes" value={lint?.duplicateGroups.length ?? 0} warn={(lint?.duplicateGroups.length ?? 0) > 0} colors={colors} />
       </View>
 
       <Text style={styles.h1}>Duplicate detection</Text>
@@ -547,11 +583,40 @@ export default function SettingsScreen(): React.JSX.Element {
   );
 }
 
-function StatCell({ label, value, warn }: { label: string; value: number; warn: boolean }): React.JSX.Element {
+function StatCell({
+  label,
+  value,
+  warn,
+  colors,
+}: {
+  label: string;
+  value: number;
+  warn: boolean;
+  colors: ThemeColors;
+}): React.JSX.Element {
   return (
-    <View style={[styles.stat, warn && styles.statWarn]}>
-      <Text style={[styles.statValue, warn && styles.statValueWarn]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+    <View
+      style={{
+        flexGrow: 1,
+        minWidth: '45%',
+        backgroundColor: warn ? colors.warnBannerBg : colors.surface,
+        borderColor: colors.borderSubtle,
+        borderWidth: 1,
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 22,
+          fontWeight: '700',
+          color: warn ? colors.warnBannerText : colors.text,
+        }}
+      >
+        {value}
+      </Text>
+      <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -567,6 +632,8 @@ function DupGroupCard({
   onApply: () => void;
   onIgnore: () => void;
 }): React.JSX.Element {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.dupGroup}>
       {group.slugs.map((s) => (
@@ -609,140 +676,132 @@ function DupGroupCard({
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#f9fafb' },
-  container: { padding: 16, gap: 8 },
-  h1: { fontSize: 18, fontWeight: '700', color: '#111827', marginTop: 16 },
-  h2: { fontSize: 15, fontWeight: '700', color: '#111827', marginTop: 12 },
-  mono: { fontFamily: 'Menlo', color: '#374151' },
-  input: {
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#fff',
-    textAlignVertical: 'top',
-  },
-  btnRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  primary: {
-    backgroundColor: '#2563eb',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  primaryText: { color: '#fff', fontWeight: '600' },
-  secondary: {
-    backgroundColor: '#e5e7eb',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  secondaryText: { color: '#111827', fontWeight: '600' },
-  ok: { color: '#065f46', marginTop: 4 },
-  hint: { color: '#6b7280', fontSize: 12 },
-  link: { color: '#2563eb', marginVertical: 4 },
-  providerRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  providerBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-  },
-  providerBtnActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  providerText: { color: '#374151', fontWeight: '600' },
-  providerTextActive: { color: '#fff' },
-  modelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
-  modelBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    borderColor: '#d1d5db',
-    borderWidth: 1,
-  },
-  modelBtnActive: { backgroundColor: '#1f2937', borderColor: '#1f2937' },
-  modelText: { color: '#374151', fontSize: 12 },
-  modelTextActive: { color: '#fff' },
-  lockedModel: {
-    backgroundColor: '#fff',
-    borderColor: '#e5e7eb',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    gap: 4,
-  },
-  lockedModelLabel: { color: '#6b7280', fontSize: 12, textTransform: 'uppercase' },
-  lockedModelValue: { fontFamily: 'Menlo', color: '#111827', fontWeight: '600' },
-  exportCard: {
-    backgroundColor: '#2563eb',
-    padding: 14,
-    borderRadius: 10,
-    marginVertical: 6,
-  },
-  exportTitle: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  exportSub: { color: '#dbeafe', marginTop: 2 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  stat: {
-    flexGrow: 1,
-    minWidth: '45%',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  statWarn: { backgroundColor: '#fef3c7' },
-  statValue: { fontSize: 22, fontWeight: '700', color: '#111827' },
-  statValueWarn: { color: '#92400e' },
-  statLabel: { color: '#6b7280', fontSize: 12, marginTop: 2 },
-  card: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 6,
-    gap: 4,
-  },
-  dupItem: { color: '#374151' },
-  dupNote: { color: '#374151', fontStyle: 'italic', marginBottom: 4 },
-  dupGroup: {
-    borderTopColor: '#e5e7eb',
-    borderTopWidth: 1,
-    paddingTop: 8,
-    marginTop: 8,
-    gap: 4,
-  },
-  dupRec: { color: '#111827', fontWeight: '700', marginTop: 4 },
-  dupReason: { color: '#374151' },
-  dupSuggestion: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 6,
-    padding: 8,
-    gap: 2,
-    marginTop: 4,
-  },
-  dupSuggestionTitle: { color: '#111827', fontWeight: '600' },
-  dupSuggestionLine: { color: '#374151', fontSize: 12 },
-  switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
-  switchLabel: { color: '#374151' },
-  primaryDisabled: { backgroundColor: '#93c5fd' },
-  chatBubble: {
-    padding: 8,
-    borderRadius: 8,
-    marginVertical: 2,
-    maxWidth: '90%',
-  },
-  chatUser: { backgroundColor: '#dbeafe', alignSelf: 'flex-end' },
-  chatAi: { backgroundColor: '#f3f4f6', alignSelf: 'flex-start' },
-  chatBubbleText: { color: '#111827' },
-  orphanRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    borderBottomColor: '#e5e7eb',
-    borderBottomWidth: 1,
-  },
-  dangerLink: { color: '#b91c1c' },
-});
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: c.bg },
+    container: { padding: 16, gap: 8 },
+    h1: { fontSize: 18, fontWeight: '700', color: c.text, marginTop: 16 },
+    h2: { fontSize: 15, fontWeight: '700', color: c.text, marginTop: 12 },
+    mono: { fontFamily: 'Menlo', color: c.textSecondary },
+    input: {
+      borderColor: c.border,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      backgroundColor: c.inputBg,
+      color: c.text,
+      textAlignVertical: 'top',
+    },
+    btnRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+    primary: {
+      backgroundColor: c.primary,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      alignSelf: 'flex-start',
+    },
+    primaryText: { color: c.onPrimary, fontWeight: '600' },
+    primaryDisabled: { backgroundColor: c.primaryDisabled },
+    secondary: {
+      backgroundColor: c.borderSubtle,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 8,
+      alignSelf: 'flex-start',
+    },
+    secondaryText: { color: c.text, fontWeight: '600' },
+    ok: { color: c.successText, marginTop: 4 },
+    hint: { color: c.textMuted, fontSize: 12 },
+    link: { color: c.link, marginVertical: 4 },
+    providerRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+    providerBtn: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderWidth: 1,
+    },
+    providerBtnActive: { backgroundColor: c.primary, borderColor: c.primary },
+    providerText: { color: c.textSecondary, fontWeight: '600' },
+    providerTextActive: { color: c.onPrimary },
+    modelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+    modelBtn: {
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+      backgroundColor: c.surface,
+      borderColor: c.border,
+      borderWidth: 1,
+    },
+    modelBtnActive: { backgroundColor: c.text, borderColor: c.text },
+    modelText: { color: c.textSecondary, fontSize: 12 },
+    modelTextActive: { color: c.bg },
+    lockedModel: {
+      backgroundColor: c.surface,
+      borderColor: c.borderSubtle,
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: 10,
+      gap: 4,
+    },
+    lockedModelLabel: { color: c.textMuted, fontSize: 12, textTransform: 'uppercase' },
+    lockedModelValue: { fontFamily: 'Menlo', color: c.text, fontWeight: '600' },
+    exportCard: {
+      backgroundColor: c.primary,
+      padding: 14,
+      borderRadius: 10,
+      marginVertical: 6,
+    },
+    exportTitle: { color: c.onPrimary, fontWeight: '700', fontSize: 16 },
+    exportSub: { color: c.primaryMuted, marginTop: 2 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    card: {
+      backgroundColor: c.surface,
+      borderColor: c.borderSubtle,
+      borderWidth: 1,
+      padding: 12,
+      borderRadius: 8,
+      marginTop: 6,
+      gap: 4,
+    },
+    dupItem: { color: c.textSecondary },
+    dupNote: { color: c.textSecondary, fontStyle: 'italic', marginBottom: 4 },
+    dupGroup: {
+      borderTopColor: c.borderSubtle,
+      borderTopWidth: 1,
+      paddingTop: 8,
+      marginTop: 8,
+      gap: 4,
+    },
+    dupRec: { color: c.text, fontWeight: '700', marginTop: 4 },
+    dupReason: { color: c.textSecondary },
+    dupSuggestion: {
+      backgroundColor: c.surfaceAlt,
+      borderRadius: 6,
+      padding: 8,
+      gap: 2,
+      marginTop: 4,
+    },
+    dupSuggestionTitle: { color: c.text, fontWeight: '600' },
+    dupSuggestionLine: { color: c.textSecondary, fontSize: 12 },
+    switchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
+    switchLabel: { color: c.textSecondary },
+    chatBubble: {
+      padding: 8,
+      borderRadius: 8,
+      marginVertical: 2,
+      maxWidth: '90%',
+    },
+    chatUser: { backgroundColor: c.toneInfoBg, alignSelf: 'flex-end' },
+    chatAi: { backgroundColor: c.surfaceAlt, alignSelf: 'flex-start' },
+    chatBubbleText: { color: c.text },
+    orphanRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 6,
+      borderBottomColor: c.borderSubtle,
+      borderBottomWidth: 1,
+    },
+    dangerLink: { color: c.dangerText },
+  });

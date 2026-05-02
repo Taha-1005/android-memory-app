@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTheme } from '../theme/ThemeContext';
+import type { ThemeColors } from '../theme/theme';
 
 interface Props {
   children: React.ReactNode;
@@ -33,46 +35,60 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   render(): React.ReactNode {
     if (this.state.error) {
-      return (
-        <ScrollView contentContainerStyle={styles.wrap}>
-          <Text style={styles.title}>Something went wrong.</Text>
-          <Text style={styles.body}>{this.state.error.message}</Text>
-          {this.state.error.stack ? (
-            <View style={styles.stack}>
-              <Text style={styles.stackText}>{this.state.error.stack}</Text>
-            </View>
-          ) : null}
-          <Pressable onPress={this.reset} style={styles.btn}>
-            <Text style={styles.btnText}>Dismiss</Text>
-          </Pressable>
-          <Text style={styles.hint}>
-            Your wiki data is safe. If this keeps happening, restart the app.
-          </Text>
-        </ScrollView>
-      );
+      return <ErrorFallback error={this.state.error} onReset={this.reset} />;
     }
     return this.props.children;
   }
 }
-const styles = StyleSheet.create({
-  wrap: { padding: 24, gap: 12, backgroundColor: '#f9fafb', flexGrow: 1 },
-  title: { fontSize: 20, fontWeight: '700', color: '#991b1b' },
-  body: { color: '#374151', fontSize: 14 },
-  stack: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    padding: 10,
-    marginTop: 4,
-  },
-  stackText: { color: '#7f1d1d', fontSize: 11, fontFamily: 'Menlo' },
-  btn: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#2563eb',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  btnText: { color: '#fff', fontWeight: '600' },
-  hint: { color: '#6b7280', fontSize: 12 },
-});
+
+function ErrorFallback({
+  error,
+  onReset,
+}: {
+  error: Error;
+  onReset: () => void;
+}): React.JSX.Element {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  return (
+    <ScrollView contentContainerStyle={styles.wrap}>
+      <Text style={styles.title}>Something went wrong.</Text>
+      <Text style={styles.body}>{error.message}</Text>
+      {error.stack ? (
+        <View style={styles.stack}>
+          <Text style={styles.stackText}>{error.stack}</Text>
+        </View>
+      ) : null}
+      <Pressable onPress={onReset} style={styles.btn}>
+        <Text style={styles.btnText}>Dismiss</Text>
+      </Pressable>
+      <Text style={styles.hint}>
+        Your wiki data is safe. If this keeps happening, restart the app.
+      </Text>
+    </ScrollView>
+  );
+}
+
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    wrap: { padding: 24, gap: 12, backgroundColor: c.bg, flexGrow: 1 },
+    title: { fontSize: 20, fontWeight: '700', color: c.errBannerText },
+    body: { color: c.textSecondary, fontSize: 14 },
+    stack: {
+      backgroundColor: c.errBannerBg,
+      borderRadius: 8,
+      padding: 10,
+      marginTop: 4,
+    },
+    stackText: { color: c.errBannerText, fontSize: 11, fontFamily: 'Menlo' },
+    btn: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.primary,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      marginTop: 8,
+    },
+    btnText: { color: c.onPrimary, fontWeight: '600' },
+    hint: { color: c.textMuted, fontSize: 12 },
+  });
