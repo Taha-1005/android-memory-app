@@ -10,7 +10,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('extractResponseText', () => {
-  it('concatenates text blocks and ignores others', () => {
+  it('concatenates text blocks and ignores tool_use without input', () => {
     const text = extractResponseText({
       content: [
         { type: 'text', text: 'hello' },
@@ -19,6 +19,16 @@ describe('extractResponseText', () => {
       ],
     });
     expect(text).toBe('hello\nworld');
+  });
+
+  it('returns JSON-stringified tool_use input when present', () => {
+    const text = extractResponseText({
+      content: [
+        { type: 'text', text: 'reasoning' },
+        { type: 'tool_use', name: 'emit_x', input: { foo: 1, bar: ['a'] } },
+      ],
+    });
+    expect(JSON.parse(text)).toEqual({ foo: 1, bar: ['a'] });
   });
 });
 
@@ -83,5 +93,48 @@ describe('callClaudeAPI', () => {
     await expect(
       callClaudeAPI('hi', { apiKey: 'k', fetchImpl, timeoutMs: 5000 }),
     ).rejects.toThrow(/Empty response/);
+  });
+
+  it('forwards system, cacheSystem and tool to the request body', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(
+      jsonResponse({
+        content: [{ type: 'tool_use', name: 'emit', input: { ok: true } }],
+      }),
+    );
+    await callClaudeAPI('hi', {
+      apiKey: 'k',
+      fetchImpl,
+      timeoutMs: 5000,
+      system: 'You are X.',
+      cacheSystem: true,
+      tool: {
+        name: 'emit',
+        description: 'd',
+        input_schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' } } },
+      },
+    });
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    // cacheSystem turns the bare string into a single text block with cache_control.
+    expect(Array.isArray(body.system)).toBe(true);
+    expect(body.system[0].cache_control).toEqual({ type: 'ephemeral' });
+    expect(body.system[0].text).toBe('You are X.');
+    expect(body.tools).toHaveLength(1);
+    expect(body.tools[0].name).toBe('emit');
+    expect(body.tool_choice).toEqual({ type: 'tool', name: 'emit' });
+  });
+
+  it('sends system as a bare string when cacheSystem is omitted', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(
+      jsonResponse({ content: [{ type: 'text', text: 'ok' }] }),
+    );
+    await callClaudeAPI('hi', {
+      apiKey: 'k',
+      fetchImpl,
+      timeoutMs: 5000,
+      system: 'plain system',
+    });
+    const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
+    expect(body.system).toBe('plain system');
+    expect(body.tools).toBeUndefined();
   });
 });

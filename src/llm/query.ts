@@ -19,7 +19,7 @@ export async function runQuery(
   pages: WikiPage[],
   opts: LLMCallOptions,
 ): Promise<QueryResult> {
-  const prompt = buildQueryPrompt({
+  const { system, user, tool } = buildQueryPrompt({
     query,
     pages: pages.map((p) => ({
       title: p.title,
@@ -28,6 +28,6 @@ export async function runQuery(
       facts: p.facts,
     })),
   });
-  const { text } = await callLLM(prompt, { jsonMode: true, ...opts });
+  const { text } = await callLLM(user, { jsonMode: true, system, tool, ...opts });
   return parseQueryResponse(text);
 }

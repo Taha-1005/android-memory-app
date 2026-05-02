@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { initDb } from '../src/db/client';
 import { resetOrphanedProcessing } from '../src/db/repositories/sourceLog';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeContext';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 function ThemedStack(): React.JSX.Element {
   const { colors, mode } = useTheme();
@@ -56,8 +57,10 @@ export default function RootLayout(): React.JSX.Element {
     );
   }
   return (
-    <ThemeProvider>
-      <ThemedStack />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <ThemedStack />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

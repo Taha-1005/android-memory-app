@@ -52,6 +52,15 @@ describe('mergePage', () => {
     expect(m.kind).toBe('source');
   });
 
+  it('preserves kind on user-edited pages (no silent reclassification)', () => {
+    const m = mergePage(
+      basePage({ userEdited: true, kind: 'entity' }),
+      incoming({ kind: 'concept' }),
+      null,
+    );
+    expect(m.kind).toBe('entity');
+  });
+
   it('unions facts, links, sources without duplicates', () => {
     const m = mergePage(basePage(), incoming({ facts: ['a fact', 'extra'] }), 'src1');
     expect(m.facts.sort()).toEqual(['a fact', 'extra']);

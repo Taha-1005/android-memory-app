@@ -24,7 +24,13 @@ export async function runMerge(
   b: WikiPage,
   opts: LLMCallOptions,
 ): Promise<IncomingPage> {
-  const prompt = buildMergePrompt({ a, b });
-  const { text } = await callLLM(prompt, { maxTokens: 1500, jsonMode: true, ...opts });
+  const { system, user, tool } = buildMergePrompt({ a, b });
+  const { text } = await callLLM(user, {
+    maxTokens: 1500,
+    jsonMode: true,
+    system,
+    tool,
+    ...opts,
+  });
   return parseMergeResponse(text);
 }

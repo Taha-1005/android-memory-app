@@ -14,6 +14,7 @@ const ANTHROPIC_MODEL_NAME = 'anthropic_model';
 const GEMINI_KEY_NAME = 'gemini_api_key';
 const GEMINI_MODEL_NAME = 'gemini_model';
 const PROVIDER_NAME = 'llm_provider';
+const CROSS_CHECK_NAME = 'dedup_cross_check_enabled';
 
 type SecureStore = {
   getItemAsync(key: string): Promise<string | null>;
@@ -96,6 +97,17 @@ export async function getModel(): Promise<string> {
 
 export async function setModel(model: string): Promise<void> {
   await setModelFor(await getProvider(), model);
+}
+
+export async function getCrossCheckEnabled(): Promise<boolean> {
+  const s = await store();
+  const v = await s.getItemAsync(CROSS_CHECK_NAME);
+  return v === '1';
+}
+
+export async function setCrossCheckEnabled(enabled: boolean): Promise<void> {
+  const s = await store();
+  await s.setItemAsync(CROSS_CHECK_NAME, enabled ? '1' : '0');
 }
 
 export function maskKey(key: string | null): string {
