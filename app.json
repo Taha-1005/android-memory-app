@@ -9,6 +9,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "mobilewiki",
+    "platforms": ["ios", "android"],
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
