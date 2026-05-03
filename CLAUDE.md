@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Contribution rules (enforced by branch protection on `main`)
+
+- **No direct pushes to `main`** — including by repo admins. All changes go through a pull request.
+- **Branch names must start with `feature/`.** PRs from any other prefix (e.g. `chore/`, `fix/`, `claude/`) are rejected by the `Validate source branch` check.
+- **Required CI checks:** `Typecheck and unit tests` and `Validate source branch` must pass before a PR can merge. Defined in `.github/workflows/test.yml` (runs on `pull_request` to `main`).
+- **Approvals: 0** — self-merge is allowed once checks pass.
+- **No force pushes, no branch deletions** on `main`.
+- The `EAS Update` workflow is **not** a required check (it runs on push to `main` after merge).
+
+Standard flow:
+```bash
+git checkout -b feature/<short-description>
+# work, commit
+git push -u origin feature/<short-description>
+gh pr create --base main
+# wait for green checks, then merge
+```
+
 ## Commands
 
 ```bash
