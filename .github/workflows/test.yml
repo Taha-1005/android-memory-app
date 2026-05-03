@@ -1,0 +1,39 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: ['feature/**']
+
+concurrency:
+  group: pr-checks-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  validate-branch-name:
+    name: Validate source branch
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check branch name starts with feature/
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          if [[ "$BRANCH" != feature/* ]]; then
+            echo "::error::Only branches matching 'feature/*' can be merged into main. Got: $BRANCH"
+            exit 1
+          fi
+          echo "Source branch '$BRANCH' is valid."
+
+  test:
+    name: Typecheck and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test -- --ci
