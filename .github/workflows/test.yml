@@ -3,18 +3,15 @@ name: PR Checks
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: ['feature/**']
 
 concurrency:
-  group: pr-checks-${{ github.head_ref || github.ref_name }}
+  group: pr-checks-${{ github.head_ref }}
   cancel-in-progress: true
 
 jobs:
   validate-branch-name:
     name: Validate source branch
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - name: Check branch name starts with feature/
         run: |
