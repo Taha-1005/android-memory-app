@@ -56,4 +56,11 @@ jobs:
         run: npm test -- --ci
 
       - name: Publish update
-        run: eas update --branch ${{ github.event.inputs.branch || 'preview' }} --message "${{ github.event.head_commit.message || format('Manual dispatch from {0}', github.sha) }}" --non-interactive
+        env:
+          EAS_BRANCH: ${{ github.event.inputs.branch || 'preview' }}
+          # Pass the commit message via env so bash never re-parses it.
+          # Direct ${{ }} interpolation pastes raw text into the shell script,
+          # which blows up on backticks, parens, $, and other punctuation that
+          # legitimately appears in commit bodies.
+          EAS_MESSAGE: ${{ github.event.head_commit.message || format('Manual dispatch from {0}', github.sha) }}
+        run: eas update --branch "$EAS_BRANCH" --message "$EAS_MESSAGE" --non-interactive
