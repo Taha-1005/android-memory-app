@@ -115,10 +115,12 @@ export default function AddScreen(): React.JSX.Element {
       setStatus('processing');
       const prep = await runIngestForLog(entry.id);
       setStatus('checking');
-      const provider = await getProvider();
-      const apiKey = (await getApiKey()) ?? '';
-      const model = await getModel();
-      const allPages = await listPages(getDb());
+      const [provider, apiKey, model, allPages] = await Promise.all([
+        getProvider(),
+        getApiKey().then((k) => k ?? ''),
+        getModel(),
+        listPages(getDb()),
+      ]);
       // Per-candidate checks are independent — fire them concurrently so a
       // 5-page ingest doesn't pay 5× the per-call latency in series.
       const results: DuplicateCheckResult[] = await Promise.all(

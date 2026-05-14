@@ -5,8 +5,9 @@ import { runIngest } from '../llm/ingest';
 import { getDb } from '../db/client';
 import { getApiKey, getModel, getProvider } from '../secure/apiKey';
 import { getPage, upsertPage } from '../db/repositories/pages';
-import { updateLog, insertLog } from '../db/repositories/sourceLog';
+import { getLog, updateLog, insertLog } from '../db/repositories/sourceLog';
 import { nowIso } from '../utils/time';
+import { toErrorMessage } from '../utils/errors';
 
 export function generateLogId(): string {
   return `src_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -62,32 +63,24 @@ export async function runIngestForLog(logId: string): Promise<IngestPrep> {
   await updateLog(db, logId, { processing: true, error: null });
 
   try {
-    const row = await db.getFirstAsync<{
-      id: string;
-      slug: string;
-      kind: 'text' | 'url';
-      title: string;
-      content: string | null;
-      url: string | null;
-    }>(`SELECT id, slug, kind, title, content, url FROM source_log WHERE id = ?;`, [logId]);
-    if (!row) throw new Error('Source log entry not found.');
+    const entry = await getLog(db, logId);
+    if (!entry) throw new Error('Source log entry not found.');
 
     const incoming = await runIngest(
       {
-        title: row.title,
-        kind: row.kind,
-        content: row.content,
-        url: row.url,
+        title: entry.title,
+        kind: entry.kind,
+        content: entry.content,
+        url: entry.url,
       },
       { provider, apiKey, model },
     );
 
     const sourcePage = incoming.find((p) => p.kind === 'source');
-    const sourceSlug = sourcePage ? slugify(sourcePage.title) : row.slug;
+    const sourceSlug = sourcePage ? slugify(sourcePage.title) : entry.slug;
     return { incoming, sourceSlug };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    await updateLog(db, logId, { processing: false, processed: false, error: msg });
+    await updateLog(db, logId, { processing: false, processed: false, error: toErrorMessage(e) });
     throw e;
   }
 }
@@ -117,8 +110,7 @@ export async function applyIngestResults(
     });
     return written;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    await updateLog(db, logId, { processing: false, processed: false, error: msg });
+    await updateLog(db, logId, { processing: false, processed: false, error: toErrorMessage(e) });
     throw e;
   }
 }

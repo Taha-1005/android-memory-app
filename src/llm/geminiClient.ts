@@ -1,4 +1,5 @@
-import { assertOnline } from '../utils/network';
+import { fetchJsonWithTimeout } from '../utils/network';
+import { toErrorMessage } from '../utils/errors';
 
 export interface GeminiClientOptions {
   apiKey: string;
@@ -64,22 +65,6 @@ export async function callGeminiAPI(
   } = opts;
   if (!apiKey) throw new Error('No Gemini API key configured.');
 
-  const doFetch: typeof fetch = fetchImpl ?? (globalThis.fetch as typeof fetch);
-  if (!doFetch) throw new Error('No fetch implementation available.');
-  if (!skipConnectivityCheck && !fetchImpl) {
-    await assertOnline();
-  }
-
-  const controller = new AbortController();
-  const abortListener = () => {
-    try {
-      controller.abort();
-    } catch {
-      /* ignore */
-    }
-  };
-  signal?.addEventListener('abort', abortListener, { once: true });
-
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model,
   )}:generateContent`;
@@ -87,7 +72,7 @@ export async function callGeminiAPI(
   const generationConfig: Record<string, unknown> = { maxOutputTokens: maxTokens };
   if (jsonMode) generationConfig.responseMimeType = 'application/json';
 
-  const fetchPromise = doFetch(url, {
+  const data = await fetchJsonWithTimeout<GeminiResponse>(url, {
     method: 'POST',
     headers: {
       'x-goog-api-key': apiKey,
@@ -97,39 +82,19 @@ export async function callGeminiAPI(
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig,
     }),
-    signal: controller.signal,
+    timeoutMs,
+    signal,
+    fetchImpl,
+    skipConnectivityCheck,
+    errorPrefix: 'Gemini API',
+    timeoutLabel: 'Gemini request',
   });
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      try {
-        controller.abort();
-      } catch {
-        /* ignore */
-      }
-      reject(new Error(`Gemini request timed out after ${Math.round(timeoutMs / 1000)}s.`));
-    }, timeoutMs);
-  });
-
-  try {
-    const response = (await Promise.race([fetchPromise, timeoutPromise])) as Response;
-    if (timer) clearTimeout(timer);
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`Gemini API ${response.status}: ${body.slice(0, 300)}`);
-    }
-    const data = (await response.json()) as GeminiResponse;
-    if (data.error) {
-      throw new Error(`Gemini API error ${data.error.status ?? data.error.code}: ${data.error.message}`);
-    }
-    const text = extractGeminiText(data);
-    if (!text) throw new Error('Empty response from Gemini.');
-    return { text, raw: data };
-  } finally {
-    if (timer) clearTimeout(timer);
-    signal?.removeEventListener('abort', abortListener);
+  if (data.error) {
+    throw new Error(`Gemini API error ${data.error.status ?? data.error.code}: ${data.error.message}`);
   }
+  const text = extractGeminiText(data);
+  if (!text) throw new Error('Empty response from Gemini.');
+  return { text, raw: data };
 }
 
 export async function probeGeminiKey(
@@ -146,7 +111,7 @@ export async function probeGeminiKey(
     });
     return text.trim().length > 0 ? { ok: true } : { ok: false, message: 'Empty response.' };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg = toErrorMessage(e);
     const m = msg.match(/API (\d+):/);
     return { ok: false, status: m ? Number(m[1]) : undefined, message: msg };
   }
