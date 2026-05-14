@@ -13,6 +13,7 @@ import {
   buildDuplicateScanPrompt,
   buildChatSummaryPrompt,
 } from '../../src/llm/prompts';
+import { jsonResponse } from '../helpers/fetchMock';
 
 describe('buildDuplicateScanPrompt', () => {
   it('puts persona/schema in system and the corpus in user', () => {
@@ -220,15 +221,6 @@ describe('chat helpers', () => {
 });
 
 describe('maybeCompressHistory', () => {
-  function jsonResponse(body: unknown, status = 200): Response {
-    return {
-      ok: status < 400,
-      status,
-      json: async () => body,
-      text: async () => JSON.stringify(body),
-    } as unknown as Response;
-  }
-
   // History below budget passes through untouched without an LLM call.
   it('returns input unchanged when under the budget', async () => {
     const fetchImpl = jest.fn();

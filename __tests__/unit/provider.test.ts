@@ -1,13 +1,5 @@
 import { callLLM, defaultModelFor, isProvider } from '../../src/llm/provider';
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return {
-    ok: status < 400,
-    status,
-    json: async () => body,
-    text: async () => JSON.stringify(body),
-  } as unknown as Response;
-}
+import { jsonResponse } from '../helpers/fetchMock';
 
 describe('isProvider', () => {
   it('accepts the two supported providers', () => {

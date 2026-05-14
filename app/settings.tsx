@@ -26,7 +26,7 @@ import {
   setModelFor,
   setProvider,
 } from '../src/secure/apiKey';
-import { probeProviderKey, defaultModelFor, Provider } from '../src/llm/provider';
+import { DEFAULT_ANTHROPIC_MODEL, probeProviderKey, defaultModelFor, Provider } from '../src/llm/provider';
 import {
   PROVIDER_KEY_HINT,
   PROVIDER_KEY_URL,
@@ -68,7 +68,7 @@ export default function SettingsScreen(): React.JSX.Element {
   const [provider, setProviderLocal] = useState<Provider>('anthropic');
   const [key, setKey] = useState<string | null>(null);
   const [newKey, setNewKey] = useState('');
-  const [model, setModelLocal] = useState('claude-sonnet-4-6');
+  const [model, setModelLocal] = useState(DEFAULT_ANTHROPIC_MODEL);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

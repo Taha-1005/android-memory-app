@@ -1,13 +1,5 @@
 import { callClaudeAPI, extractResponseText } from '../../src/llm/client';
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return {
-    ok: status < 400,
-    status,
-    json: async () => body,
-    text: async () => JSON.stringify(body),
-  } as unknown as Response;
-}
+import { jsonResponse } from '../helpers/fetchMock';
 
 describe('extractResponseText', () => {
   it('concatenates text blocks and ignores tool_use without input', () => {
