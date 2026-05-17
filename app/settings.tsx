@@ -54,6 +54,7 @@ import { slugify } from '../src/domain/slugify';
 import { planRename } from '../src/domain/renamePage';
 import { useTheme } from '../src/theme/ThemeContext';
 import type { ThemeColors, ThemePreference } from '../src/theme/theme';
+import { UpdatesPanel } from '../src/components/UpdatesPanel';
 
 const APPEARANCE_LABEL: Record<ThemePreference, string> = {
   light: 'Light',
@@ -563,6 +564,8 @@ export default function SettingsScreen(): React.JSX.Element {
           </Pressable>
         </View>
       ) : null}
+
+      <UpdatesPanel />
 
       {lint?.orphans.length ? (
         <>
