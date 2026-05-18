@@ -10,6 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Approvals: 0** — self-merge is allowed once checks pass.
 - **No force pushes, no branch deletions** on `main`.
 - The `EAS Update` workflow is **not** a required check (it runs on push to `main` after merge).
+- **Versioning:** before merging any PR to `main`, assess the change against
+  [`VERSIONING.md`](./VERSIONING.md) and run its pre-merge checklist. It decides
+  the SemVer bump (or none) and whether the change ships OTA or needs a new
+  native build + `expo.version` bump. Native changes that skip the bump silently
+  break OTA for installed apps.
 
 Standard flow:
 ```bash
