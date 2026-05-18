@@ -351,7 +351,6 @@ export default function SettingsScreen(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
-      <Text style={styles.otaMarker}>OTA smoke test · marker A1 · 2026-05-18</Text>
       <Text style={styles.h1}>Appearance</Text>
       <View style={styles.providerRow}>
         {(['light', 'dark', 'system'] as const).map((p) => (
@@ -716,17 +715,6 @@ const makeStyles = (c: ThemeColors) =>
     secondaryText: { color: c.text, fontWeight: '600' },
     ok: { color: c.successText, marginTop: 4 },
     hint: { color: c.textMuted, fontSize: 12 },
-    otaMarker: {
-      color: c.onPrimary,
-      backgroundColor: c.primary,
-      fontSize: 13,
-      fontWeight: '700',
-      textAlign: 'center',
-      paddingVertical: 6,
-      borderRadius: 6,
-      marginTop: 8,
-      overflow: 'hidden',
-    },
     link: { color: c.link, marginVertical: 4 },
     providerRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
     providerBtn: {
