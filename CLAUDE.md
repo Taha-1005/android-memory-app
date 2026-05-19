@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **No direct pushes to `main`** — including by repo admins. All changes go through a pull request.
 - **Branch names must start with `feature/`.** PRs from any other prefix (e.g. `chore/`, `fix/`, `claude/`) are rejected by the `Validate source branch` check.
 - **Required CI checks:** `Typecheck and unit tests` and `Validate source branch` must pass before a PR can merge. Defined in `.github/workflows/test.yml` (runs on `pull_request` to `main`).
-- **Approvals: 0** — self-merge is allowed once checks pass.
+- **Reviews: 1 required, code-owner only.** `.github/CODEOWNERS` makes `@Taha-1005` the owner of all paths and `require_code_owner_reviews` is on, so **only `@Taha-1005`'s approval can satisfy a PR's review** — another collaborator's approval does not count. Anyone with write access can still create `feature/*` branches and open PRs.
+- **Admin bypass:** `enforce_admins` is **off** so the repo owner can merge their own PRs (GitHub disallows self-approval). All non-admins are fully gated by the code-owner review.
 - **No force pushes, no branch deletions** on `main`.
 - The `EAS Update` workflow is **not** a required check (it runs on push to `main` after merge).
 - **Versioning:** before merging any PR to `main`, assess the change against
