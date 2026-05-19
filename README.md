@@ -65,6 +65,25 @@ Override the models with `ANTHROPIC_MODEL=...` or `GEMINI_MODEL=...`
 Anthropic on Haiku is well under $0.001 per full run; Gemini on
 Flash-Lite is $0 on the free tier.
 
+### E2E tests (Maestro, like-on-mobile)
+
+For the faithful "as on a real phone" layer, this repo ships Maestro
+flows under `.maestro/` that drive the **real native build** on an
+Android emulator or device — true `expo-sqlite` / `expo-secure-store`,
+real navigation, real theming. Jest can't do that because the unit
+suite mocks the native side.
+
+Full one-time setup + how to run lives in **[`MAESTRO.md`](./MAESTRO.md)**
+(JDK, Android SDK + emulator, the `mobilewiki` AVD, Maestro CLI, and
+the exact verified commands). Quick run once installed:
+
+```bash
+emulator -avd mobilewiki -no-window -no-audio -no-snapshot -gpu swiftshader_indirect &
+adb wait-for-device
+adb install -r /path/to/app.apk
+npm run e2e                   # .maestro/onboarding.yaml, secret-free
+```
+
 ---
 
 ## Choosing a provider (Anthropic vs Gemini)
