@@ -3,6 +3,21 @@
 These rules govern when and how to change the app version. **Assess every change
 against this file before merging to `main`** (see the checklist at the bottom).
 
+## 0. Quick rule (the 90% case)
+
+- **JS/TS-only change** → **do NOT bump `expo.version`.** It ships OTA to
+  everyone on merge, no reinstall.
+- **Native change** (native dep, Expo SDK, `ios/`/`android/`, native
+  `app.json` keys, launcher icon/splash) → **bump `expo.version` + new
+  `eas build`.** Installed apps need a one-time reinstall to catch up.
+
+Why bumping on a JS-only change is harmful: `runtimeVersion` uses the
+`appVersion` policy, so changing `expo.version` changes the runtime version
+and **orphans every installed app from OTA** until they reinstall. Only bump
+when a native change already forces a rebuild anyway. This coupling is
+intentional (predictable: OTA compatibility breaks only when you bump) — see
+§3 for the full reasoning.
+
 ## 1. Two things to decide for every change
 
 Every merge has to answer two independent questions:
