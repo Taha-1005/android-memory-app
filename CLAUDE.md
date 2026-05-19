@@ -36,6 +36,7 @@ npx jest __tests__/unit/foo.test.ts          # single test file
 npx jest __tests__/unit/foo.test.ts -t "name"  # single test by name
 npm run typecheck             # tsc --noEmit (also used as lint)
 npm start                     # Expo dev server (scan QR with Expo Go)
+npm run e2e                   # Maestro E2E on emulator/device — see .maestro/README.md for setup
 
 # Integration tests — hit real APIs, cost real tokens
 ANTHROPIC_API_KEY=sk-ant-... INTEGRATION=1 npm run test:integration
