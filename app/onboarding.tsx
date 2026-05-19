@@ -21,6 +21,7 @@ import {
 } from '../src/llm/providerInfo';
 import { useTheme } from '../src/theme/ThemeContext';
 import type { ThemeColors } from '../src/theme/theme';
+import { Logo } from '../src/components/Logo';
 
 export default function Onboarding(): React.JSX.Element {
   const router = useRouter();
@@ -49,6 +50,9 @@ export default function Onboarding(): React.JSX.Element {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={styles.container}>
+      <View style={styles.logoWrap}>
+        <Logo size={104} />
+      </View>
       <Text style={styles.title}>Welcome to Mobile Wiki</Text>
       <Text style={styles.body}>
         This app uses an LLM to turn your sources into wiki pages. Pick a
@@ -117,6 +121,7 @@ const makeStyles = (c: ThemeColors) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: c.bg },
     container: { padding: 20, gap: 10 },
+    logoWrap: { alignItems: 'center', marginTop: 12, marginBottom: 4 },
     title: { fontSize: 24, fontWeight: '700', color: c.text },
     body: { color: c.textSecondary, lineHeight: 22 },
     link: { color: c.link, marginVertical: 4 },
