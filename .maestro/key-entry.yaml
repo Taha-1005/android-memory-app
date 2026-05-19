@@ -1,0 +1,24 @@
+# Optional deeper flow: enters an API key and lands on the tabs.
+# NOT secret-free — requires MAESTRO_API_KEY to be supplied at run time:
+#
+#   maestro test -e MAESTRO_API_KEY="sk-ant-..." .maestro/key-entry.yaml
+#
+# Skipped automatically when the variable is absent so the suite stays
+# deterministic in CI. Probing a real key hits the provider network.
+appId: com.mobilewiki.app
+---
+- runFlow:
+    when:
+      notVisible: "${MAESTRO_API_KEY == null}"
+    commands:
+      - launchApp:
+          clearState: true
+      - assertVisible: "Welcome to Mobile Wiki"
+      - tapOn: "Anthropic Claude"
+      - tapOn:
+          id: ".*API key"
+      - inputText: "${MAESTRO_API_KEY}"
+      - tapOn: "Continue"
+      - assertVisible:
+          id: "add|Add"        # tab bar after successful onboarding
+      - takeScreenshot: after-onboarding

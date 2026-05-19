@@ -1,0 +1,16 @@
+# Golden-path smoke flow: app launches into onboarding on a fresh install.
+# Runs against the real native build on an emulator/device — the faithful
+# "as on mobile" check (real expo-sqlite / expo-secure-store runtime).
+#
+# Kept secret-free on purpose: it stops at the onboarding screen rather than
+# entering an API key, so it is deterministic and safe to run in CI.
+appId: com.mobilewiki.app
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Welcome to Mobile Wiki"
+- assertVisible: "Anthropic Claude"
+- assertVisible: "Google Gemini (free)"
+- assertVisible:
+    id: ".*API key"        # the secure key TextInput (accessibilityLabel)
+- takeScreenshot: onboarding

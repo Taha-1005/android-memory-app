@@ -13,6 +13,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:integration": "INTEGRATION=1 jest __tests__/integration --runInBand",
+    "e2e": "maestro test .maestro/onboarding.yaml",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "bench:run": "tsx scripts/bench/run.ts",
