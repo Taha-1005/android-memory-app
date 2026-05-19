@@ -4,6 +4,10 @@
 #
 # Kept secret-free on purpose: it stops at the onboarding screen rather than
 # entering an API key, so it is deterministic and safe to run in CI.
+#
+# Matchers use visible text only. Maestro `id:` on Android matches the native
+# resource-id, NOT the React Native accessibilityLabel, so we assert the
+# rendered label/button text instead.
 appId: com.mobilewiki.app
 ---
 - launchApp:
@@ -11,6 +15,6 @@ appId: com.mobilewiki.app
 - assertVisible: "Welcome to Mobile Wiki"
 - assertVisible: "Anthropic Claude"
 - assertVisible: "Google Gemini (free)"
-- assertVisible:
-    id: ".*API key"        # the secure key TextInput (accessibilityLabel)
+- assertVisible: "API key"            # the form label above the key input
+- assertVisible: "Validate & save"    # submit button
 - takeScreenshot: onboarding
