@@ -1,0 +1,4 @@
+# Only the repo owner is a valid code-owner reviewer.
+# Combined with branch protection (require code-owner review, 1 approval),
+# this means only @Taha-1005 approvals can satisfy a PR review.
+* @Taha-1005
