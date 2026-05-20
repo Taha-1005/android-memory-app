@@ -85,8 +85,11 @@ export default function PageScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: async () => {
             const db = getDb();
-            await deletePage(db, page.slug);
-            await deleteLogBySlug(db, page.slug);
+            // Independent deletes against pages / source_log — run together.
+            await Promise.all([
+              deletePage(db, page.slug),
+              deleteLogBySlug(db, page.slug),
+            ]);
             router.back();
           },
         },

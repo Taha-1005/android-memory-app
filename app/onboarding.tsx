@@ -22,6 +22,7 @@ import {
 import { useTheme } from '../src/theme/ThemeContext';
 import type { ThemeColors } from '../src/theme/theme';
 import { Logo } from '../src/components/Logo';
+import { toErrorMessage } from '../src/utils/errors';
 
 export default function Onboarding(): React.JSX.Element {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function Onboarding(): React.JSX.Element {
       await setApiKeyFor(provider, key.trim());
       router.replace('/(tabs)/add');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setBusy(false);
     }

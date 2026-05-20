@@ -27,7 +27,7 @@ const INK = '#1a1a1a';
 
 const PAGE_LINES = [94, 102, 110, 118, 126, 134, 142, 150];
 
-export function Logo({
+function LogoInner({
   size = 96,
   rounded = true,
 }: {
@@ -119,3 +119,5 @@ export function Logo({
     </Svg>
   );
 }
+
+export const Logo = React.memo(LogoInner);

@@ -70,7 +70,9 @@ export function ThemeProvider({
   }, []);
 
   const setPreference = useCallback(async (p: ThemePreference) => {
-    setPreferenceState(p);
+    // Short-circuit no-op writes — avoids a wasted secure-store round-trip
+    // every time the user re-taps the already-selected appearance pill.
+    setPreferenceState((prev) => (prev === p ? prev : p));
     try {
       const s = await store();
       await s.setItemAsync(PREF_KEY, p);

@@ -1,17 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Updates from 'expo-updates';
 import { useTheme } from '../theme/ThemeContext';
 import type { ThemeColors } from '../theme/theme';
-
-function shortId(id: string | null | undefined): string {
-  if (!id) return 'embedded';
-  return id.slice(0, 8);
-}
+import { toErrorMessage } from '../utils/errors';
 
 export function UpdatesPanel(): React.JSX.Element {
   const { colors } = useTheme();
-  const styles = makeStyles(colors);
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { currentlyRunning, isUpdateAvailable, isUpdatePending } = Updates.useUpdates();
   const [busy, setBusy] = useState<null | 'checking' | 'downloading'>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -37,7 +33,7 @@ export function UpdatesPanel(): React.JSX.Element {
       const r = await Updates.checkForUpdateAsync();
       setMsg(r.isAvailable ? 'A new update is available.' : 'You are on the latest version.');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(toErrorMessage(e));
     } finally {
       setBusy(null);
     }
@@ -51,7 +47,7 @@ export function UpdatesPanel(): React.JSX.Element {
       if (!isUpdatePending) await Updates.fetchUpdateAsync();
       await Updates.reloadAsync();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
+      setErr(toErrorMessage(e));
       setBusy(null);
     }
   };
@@ -73,7 +69,7 @@ export function UpdatesPanel(): React.JSX.Element {
           value={
             currentlyRunning.isEmbeddedLaunch
               ? 'embedded (bundled with APK)'
-              : shortId(currentlyRunning.updateId)
+              : (currentlyRunning.updateId ?? '').slice(0, 8) || 'unknown'
           }
           styles={styles}
         />
