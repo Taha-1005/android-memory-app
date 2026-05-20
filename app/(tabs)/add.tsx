@@ -31,6 +31,14 @@ import { getDb } from '../../src/db/client';
 import { DuplicateCheckResult, IncomingPage } from '../../src/domain/types';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ThemeColors } from '../../src/theme/theme';
+import { toErrorMessage } from '../../src/utils/errors';
+
+const SAVE_BUTTON_LABEL = {
+  saving: 'Saving…',
+  processing: 'Processing…',
+  checking: 'Checking duplicates…',
+  saved: 'Saved ✓',
+} as const;
 
 export default function AddScreen(): React.JSX.Element {
   const router = useRouter();
@@ -148,7 +156,7 @@ export default function AddScreen(): React.JSX.Element {
       setStatus(null);
     } catch (e) {
       setStatus(null);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 
@@ -173,7 +181,7 @@ export default function AddScreen(): React.JSX.Element {
       router.push('/browse');
     } catch (e) {
       setStatus(null);
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 
@@ -372,17 +380,11 @@ export default function AddScreen(): React.JSX.Element {
             accessibilityRole="button"
           >
             <Text style={styles.primaryText}>
-              {status === 'processing'
-                ? 'Processing…'
-                : status === 'checking'
-                  ? 'Checking duplicates…'
-                  : status === 'saving'
-                    ? 'Saving…'
-                    : status === 'saved'
-                      ? 'Saved ✓'
-                      : autoProcess
-                        ? 'Save & process'
-                        : 'Save source'}
+              {status
+                ? SAVE_BUTTON_LABEL[status]
+                : autoProcess
+                  ? 'Save & process'
+                  : 'Save source'}
             </Text>
           </Pressable>
         )}

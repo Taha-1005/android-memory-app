@@ -41,9 +41,14 @@ export default function BrowseScreen(): React.JSX.Element {
   }, [q, load]);
 
   const grouped = useMemo(() => {
-    const entities = pages.filter((p) => p.kind === 'entity');
-    const concepts = pages.filter((p) => p.kind === 'concept');
-    const sources = pages.filter((p) => p.kind === 'source');
+    const entities: WikiPage[] = [];
+    const concepts: WikiPage[] = [];
+    const sources: WikiPage[] = [];
+    for (const p of pages) {
+      if (p.kind === 'entity') entities.push(p);
+      else if (p.kind === 'concept') concepts.push(p);
+      else if (p.kind === 'source') sources.push(p);
+    }
     const sections: Array<{ title: string; data: WikiPage[] }> = [];
     if (entities.length) sections.push({ title: 'Entities', data: entities });
     if (concepts.length) sections.push({ title: 'Concepts', data: concepts });

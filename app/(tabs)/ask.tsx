@@ -22,6 +22,7 @@ import { fileAnswerAsPage } from '../../src/services/ingestPipeline';
 import { slugify } from '../../src/domain/slugify';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ThemeColors } from '../../src/theme/theme';
+import { toErrorMessage } from '../../src/utils/errors';
 
 export default function AskScreen(): React.JSX.Element {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function AskScreen(): React.JSX.Element {
       setResult(res);
       setFileTitle(q.replace(/\?+$/, '').trim());
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ export default function AskScreen(): React.JSX.Element {
       });
       setFiledSlug(page.slug);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 

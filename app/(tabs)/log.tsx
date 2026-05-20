@@ -22,6 +22,7 @@ import { formatRelative } from '../../src/utils/time';
 import { processSource } from '../../src/services/ingestPipeline';
 import { useTheme } from '../../src/theme/ThemeContext';
 import type { ThemeColors } from '../../src/theme/theme';
+import { toErrorMessage } from '../../src/utils/errors';
 
 export default function LogScreen(): React.JSX.Element {
   const { colors } = useTheme();
@@ -44,7 +45,7 @@ export default function LogScreen(): React.JSX.Element {
       await processSource(id);
       await load();
     } catch (e) {
-      Alert.alert('Processing failed', e instanceof Error ? e.message : String(e));
+      Alert.alert('Processing failed', toErrorMessage(e));
       await load();
     }
   };
@@ -60,9 +61,12 @@ export default function LogScreen(): React.JSX.Element {
           style: 'destructive',
           onPress: async () => {
             const db = getDb();
-            await deleteLog(db, entry.id);
-            await deletePage(db, entry.slug);
-            await deleteLogBySlug(db, entry.slug);
+            // Three deletes target different tables/rows — fire concurrently.
+            await Promise.all([
+              deleteLog(db, entry.id),
+              deletePage(db, entry.slug),
+              deleteLogBySlug(db, entry.slug),
+            ]);
             await load();
           },
         },

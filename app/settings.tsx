@@ -55,6 +55,7 @@ import { planRename } from '../src/domain/renamePage';
 import { useTheme } from '../src/theme/ThemeContext';
 import type { ThemeColors, ThemePreference } from '../src/theme/theme';
 import { UpdatesPanel } from '../src/components/UpdatesPanel';
+import { toErrorMessage } from '../src/utils/errors';
 
 const APPEARANCE_LABEL: Record<ThemePreference, string> = {
   light: 'Light',
@@ -122,7 +123,7 @@ export default function SettingsScreen(): React.JSX.Element {
       setStatus('Key saved.');
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -175,7 +176,7 @@ export default function SettingsScreen(): React.JSX.Element {
       setImportText('');
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     }
   };
 
@@ -197,7 +198,7 @@ export default function SettingsScreen(): React.JSX.Element {
           : 'AI found no duplicates.',
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setScanBusy(false);
     }
@@ -209,11 +210,10 @@ export default function SettingsScreen(): React.JSX.Element {
       return;
     }
     const db = getDb();
-    const resolved: WikiPage[] = [];
-    for (const slug of group.slugs) {
-      const p = await getPage(db, slug);
-      if (p) resolved.push(p);
-    }
+    // Resolve the group's pages concurrently — each getPage is an independent
+    // round-trip; the previous serial loop paid N× latency for nothing.
+    const resolved = (await Promise.all(group.slugs.map((slug) => getPage(db, slug))))
+      .filter((p): p is WikiPage => p !== null);
     if (resolved.length < 2) {
       setError('Merge needs at least two existing pages.');
       return;
@@ -236,7 +236,7 @@ export default function SettingsScreen(): React.JSX.Element {
       );
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -250,6 +250,8 @@ export default function SettingsScreen(): React.JSX.Element {
     const db = getDb();
     setBusy(true);
     try {
+      // `others` doesn't depend on the loop variable — load once, reuse.
+      const others = await listPages(db);
       let applied = 0;
       for (const sug of group.suggestions) {
         const existing = await getPage(db, sug.slug);
@@ -258,7 +260,6 @@ export default function SettingsScreen(): React.JSX.Element {
         const newSlug = slugify(newTitle);
         const collision =
           newSlug !== existing.slug ? await getPage(db, newSlug) : null;
-        const others = await listPages(db);
         try {
           const plan = planRename(
             existing,
@@ -271,7 +272,7 @@ export default function SettingsScreen(): React.JSX.Element {
           for (const ref of plan.rewrittenReferers) await upsertPage(db, ref);
           applied++;
         } catch (e) {
-          setError(e instanceof Error ? e.message : String(e));
+          setError(toErrorMessage(e));
         }
       }
       setStatus(`Applied disambiguation to ${applied} page${applied === 1 ? '' : 's'}.`);
@@ -280,7 +281,7 @@ export default function SettingsScreen(): React.JSX.Element {
       );
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -323,7 +324,7 @@ export default function SettingsScreen(): React.JSX.Element {
       setChatHistory([...historyForCall, replyTurn]);
       if (res.revisedReport) setScanReport(res.revisedReport);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(toErrorMessage(e));
     } finally {
       setChatBusy(false);
     }
