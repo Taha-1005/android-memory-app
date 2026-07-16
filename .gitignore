@@ -9,6 +9,9 @@ android/
 ios/
 .env
 .env.local
+
+# Google Play service account JSON for `eas submit` — never commit.
+play-service-account.json
 coverage/
 .claude/*
 
