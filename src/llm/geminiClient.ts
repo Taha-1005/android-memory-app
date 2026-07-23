@@ -1,5 +1,4 @@
-import { fetchJsonWithTimeout } from '../utils/network';
-import { toErrorMessage } from '../utils/errors';
+import { fetchJsonWithTimeout, probeKey, ProbeResult } from '../utils/network';
 
 export interface GeminiClientOptions {
   apiKey: string;
@@ -100,19 +99,10 @@ export async function callGeminiAPI(
 export async function probeGeminiKey(
   apiKey: string,
   opts: { model?: string; fetchImpl?: typeof fetch } = {},
-): Promise<{ ok: true } | { ok: false; status?: number; message: string }> {
-  try {
-    const { text } = await callGeminiAPI('Reply with exactly: OK', {
-      apiKey,
-      model: opts.model ?? DEFAULT_GEMINI_MODEL,
-      maxTokens: 10,
-      timeoutMs: 15_000,
-      fetchImpl: opts.fetchImpl,
-    });
-    return text.trim().length > 0 ? { ok: true } : { ok: false, message: 'Empty response.' };
-  } catch (e) {
-    const msg = toErrorMessage(e);
-    const m = msg.match(/API (\d+):/);
-    return { ok: false, status: m ? Number(m[1]) : undefined, message: msg };
-  }
+): Promise<ProbeResult> {
+  return probeKey(callGeminiAPI, {
+    apiKey,
+    model: opts.model ?? DEFAULT_GEMINI_MODEL,
+    fetchImpl: opts.fetchImpl,
+  });
 }

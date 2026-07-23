@@ -1,5 +1,6 @@
 import { AnthropicToolDef, callClaudeAPI, probeApiKey as probeClaudeKey } from './client';
 import { callGeminiAPI, probeGeminiKey, DEFAULT_GEMINI_MODEL } from './geminiClient';
+import { statusFromMessage } from '../utils/network';
 
 export type LLMToolDef = AnthropicToolDef;
 
@@ -54,15 +55,8 @@ export interface LLMCallResult {
   usage?: { promptTokens?: number; outputTokens?: number; totalTokens?: number };
 }
 
-/**
- * Match the `API NNN:` prefix our two clients put on transport errors and
- * pull the HTTP status out. Returns null when the message doesn't fit the
- * shape (e.g. timeout, JSON parse error).
- */
 function statusFromError(e: unknown): number | null {
-  if (!(e instanceof Error)) return null;
-  const m = e.message.match(/API (\d+):/);
-  return m ? Number(m[1]) : null;
+  return e instanceof Error ? statusFromMessage(e.message) : null;
 }
 
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504]);

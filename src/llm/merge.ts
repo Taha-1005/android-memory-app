@@ -26,11 +26,11 @@ export async function runMerge(
 ): Promise<IncomingPage> {
   const { system, user, tool } = buildMergePrompt({ a, b });
   const { text } = await callLLM(user, {
+    ...opts,
     maxTokens: 1500,
     jsonMode: true,
     system,
     tool,
-    ...opts,
   });
   return parseMergeResponse(text);
 }

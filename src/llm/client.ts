@@ -1,5 +1,4 @@
-import { fetchJsonWithTimeout } from '../utils/network';
-import { toErrorMessage } from '../utils/errors';
+import { fetchJsonWithTimeout, probeKey, ProbeResult } from '../utils/network';
 
 export interface AnthropicToolDef {
   name: string;
@@ -124,23 +123,14 @@ export async function callClaudeAPI(
 export async function probeApiKey(
   apiKey: string,
   opts: { model?: string; fetchImpl?: typeof fetch } = {},
-): Promise<{ ok: true } | { ok: false; status?: number; message: string }> {
-  try {
-    // Use the default Sonnet model rather than Haiku — every paid Anthropic
-    // key has Sonnet access, while some plans don't enable Haiku. Probing
-    // with a model the user can't call produces a confusing 404 and blocks
-    // onboarding even though the key itself is fine.
-    const { text } = await callClaudeAPI('Reply with exactly: OK', {
-      apiKey,
-      model: opts.model ?? 'claude-sonnet-4-6',
-      maxTokens: 10,
-      timeoutMs: 15_000,
-      fetchImpl: opts.fetchImpl,
-    });
-    return text.trim().length > 0 ? { ok: true } : { ok: false, message: 'Empty response.' };
-  } catch (e) {
-    const msg = toErrorMessage(e);
-    const m = msg.match(/API (\d+):/);
-    return { ok: false, status: m ? Number(m[1]) : undefined, message: msg };
-  }
+): Promise<ProbeResult> {
+  // Use the default Sonnet model rather than Haiku — every paid Anthropic key
+  // has Sonnet access, while some plans don't enable Haiku. Probing with a
+  // model the user can't call produces a confusing 404 and blocks onboarding
+  // even though the key itself is fine.
+  return probeKey(callClaudeAPI, {
+    apiKey,
+    model: opts.model ?? 'claude-sonnet-4-6',
+    fetchImpl: opts.fetchImpl,
+  });
 }

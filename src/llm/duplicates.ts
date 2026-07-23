@@ -33,6 +33,21 @@ export function compactPage(p: WikiPage): CompactPage {
   };
 }
 
+/**
+ * Pull the optional `newTitle` / `newBody` / `newFacts` edit fields out of an
+ * LLM object, trimming strings and coercing facts to string[]. Shared by the
+ * per-page suggestions in scan groups and the single suggestion on a check.
+ */
+function parseEditSuggestion(
+  obj: Record<string, unknown>,
+): { newTitle?: string; newBody?: string; newFacts?: string[] } {
+  const out: { newTitle?: string; newBody?: string; newFacts?: string[] } = {};
+  if (typeof obj.newTitle === 'string' && obj.newTitle.trim()) out.newTitle = obj.newTitle.trim();
+  if (typeof obj.newBody === 'string' && obj.newBody.trim()) out.newBody = obj.newBody.trim();
+  if (Array.isArray(obj.newFacts)) out.newFacts = obj.newFacts.map(String);
+  return out;
+}
+
 function parseSuggestions(raw: unknown): DuplicatePageSuggestion[] {
   if (!Array.isArray(raw)) return [];
   return raw
@@ -41,11 +56,7 @@ function parseSuggestions(raw: unknown): DuplicatePageSuggestion[] {
       const e = entry as Record<string, unknown>;
       const slug = typeof e.slug === 'string' ? e.slug : null;
       if (!slug) return null;
-      const out: DuplicatePageSuggestion = { slug };
-      if (typeof e.newTitle === 'string' && e.newTitle.trim()) out.newTitle = e.newTitle.trim();
-      if (typeof e.newBody === 'string' && e.newBody.trim()) out.newBody = e.newBody.trim();
-      if (Array.isArray(e.newFacts)) out.newFacts = e.newFacts.map(String);
-      return out;
+      return { slug, ...parseEditSuggestion(e) } as DuplicatePageSuggestion;
     })
     .filter((x): x is DuplicatePageSuggestion => x !== null);
 }
@@ -73,12 +84,15 @@ function parseGroups(raw: unknown): DuplicateGroup[] {
     .filter((x): x is DuplicateGroup => x !== null);
 }
 
-export function parseScanResponse(raw: string): DuplicateScanReport {
-  const parsed = extractJson<{ groups?: unknown; notes?: unknown }>(raw);
+function parseReport(obj: Record<string, unknown>): DuplicateScanReport {
   return {
-    groups: parseGroups(parsed.groups),
-    notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+    groups: parseGroups(obj.groups),
+    notes: typeof obj.notes === 'string' ? obj.notes : undefined,
   };
+}
+
+export function parseScanResponse(raw: string): DuplicateScanReport {
+  return parseReport(extractJson<Record<string, unknown>>(raw));
 }
 
 export async function runDuplicateScan(
@@ -93,11 +107,11 @@ export async function runDuplicateScan(
   const compact = pages.map(compactPage);
   const { system, user, tool } = buildDuplicateScanPrompt(compact);
   const { text } = await callLLM(user, {
+    ...opts,
     maxTokens: 3000,
     jsonMode: true,
     system,
     tool,
-    ...opts,
   });
   return parseScanResponse(text);
 }
@@ -115,11 +129,7 @@ export function parseCheckResponse(raw: string): DuplicateCheckResult {
     : [];
   let suggestion: DuplicateCheckResult['suggestion'] = null;
   if (parsed.suggestion && typeof parsed.suggestion === 'object') {
-    const s = parsed.suggestion as Record<string, unknown>;
-    const out: NonNullable<DuplicateCheckResult['suggestion']> = {};
-    if (typeof s.newTitle === 'string' && s.newTitle.trim()) out.newTitle = s.newTitle.trim();
-    if (typeof s.newBody === 'string' && s.newBody.trim()) out.newBody = s.newBody.trim();
-    if (Array.isArray(s.newFacts)) out.newFacts = s.newFacts.map(String);
+    const out = parseEditSuggestion(parsed.suggestion as Record<string, unknown>);
     if (out.newTitle || out.newBody || out.newFacts) suggestion = out;
   }
   return { status, existingSlug, reason, questions, suggestion };
@@ -140,11 +150,11 @@ export async function runDuplicateCheck(
     existing: existing.slice(0, SCAN_PAGE_CAP).map(compactPage),
   });
   const { text } = await callLLM(user, {
+    ...opts,
     maxTokens: 1200,
     jsonMode: true,
     system,
     tool,
-    ...opts,
   });
   return parseCheckResponse(text);
 }
@@ -154,11 +164,7 @@ export function parseChatResponse(raw: string): DuplicateChatResponse {
   const reply = typeof parsed.reply === 'string' ? parsed.reply : '';
   let revisedReport: DuplicateScanReport | null = null;
   if (parsed.revisedReport && typeof parsed.revisedReport === 'object') {
-    const r = parsed.revisedReport as Record<string, unknown>;
-    revisedReport = {
-      groups: parseGroups(r.groups),
-      notes: typeof r.notes === 'string' ? r.notes : undefined,
-    };
+    revisedReport = parseReport(parsed.revisedReport as Record<string, unknown>);
   }
   return { reply, revisedReport };
 }
@@ -177,12 +183,12 @@ export async function runDuplicateChat(params: {
     history,
   });
   const { text } = await callLLM(user, {
+    ...opts,
     maxTokens: 2500,
     jsonMode: true,
     system,
     tool,
     cacheSystem,
-    ...opts,
   });
   return parseChatResponse(text);
 }
@@ -197,10 +203,10 @@ export async function summariseChat(
 ): Promise<string> {
   const { system, user } = buildChatSummaryPrompt(history);
   const { text } = await callLLM(user, {
+    ...opts,
     maxTokens: 600,
     jsonMode: false,
     system,
-    ...opts,
   });
   return text.trim();
 }

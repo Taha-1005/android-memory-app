@@ -28,6 +28,6 @@ export async function runQuery(
       facts: p.facts,
     })),
   });
-  const { text } = await callLLM(user, { jsonMode: true, system, tool, ...opts });
+  const { text } = await callLLM(user, { ...opts, jsonMode: true, system, tool });
   return parseQueryResponse(text);
 }
