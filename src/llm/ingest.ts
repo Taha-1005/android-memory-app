@@ -39,6 +39,6 @@ export async function runIngest(
   opts: LLMCallOptions,
 ): Promise<IncomingPage[]> {
   const { system, user, tool } = buildIngestPrompt(input);
-  const { text } = await callLLM(user, { jsonMode: true, system, tool, ...opts });
+  const { text } = await callLLM(user, { ...opts, jsonMode: true, system, tool });
   return parseIngestResponse(text);
 }

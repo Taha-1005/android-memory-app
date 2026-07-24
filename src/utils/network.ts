@@ -9,6 +9,8 @@
  * succeed or fail on its own — false negatives are worse than false
  * positives here.
  */
+import { toErrorMessage } from './errors';
+
 export async function assertOnline(): Promise<void> {
   try {
     const mod = await import('@react-native-community/netinfo');
@@ -62,14 +64,14 @@ export async function fetchJsonWithTimeout<T>(
   }
 
   const controller = new AbortController();
-  const abortListener = () => {
+  const abort = () => {
     try {
       controller.abort();
     } catch {
       /* ignore */
     }
   };
-  opts.signal?.addEventListener('abort', abortListener, { once: true });
+  opts.signal?.addEventListener('abort', abort, { once: true });
 
   const fetchPromise = doFetch(url, {
     method: opts.method ?? 'POST',
@@ -81,18 +83,13 @@ export async function fetchJsonWithTimeout<T>(
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
-      try {
-        controller.abort();
-      } catch {
-        /* ignore */
-      }
+      abort();
       reject(new Error(`${opts.timeoutLabel} timed out after ${Math.round(opts.timeoutMs / 1000)}s.`));
     }, opts.timeoutMs);
   });
 
   try {
     const response = (await Promise.race([fetchPromise, timeoutPromise])) as Response;
-    if (timer) clearTimeout(timer);
     if (!response.ok) {
       const body = await response.text().catch(() => '');
       throw new Error(`${opts.errorPrefix} ${response.status}: ${body.slice(0, 300)}`);
@@ -100,6 +97,45 @@ export async function fetchJsonWithTimeout<T>(
     return (await response.json()) as T;
   } finally {
     if (timer) clearTimeout(timer);
-    opts.signal?.removeEventListener('abort', abortListener);
+    opts.signal?.removeEventListener('abort', abort);
+  }
+}
+
+/**
+ * Pull the HTTP status out of the `${prefix} NNN:` shape that
+ * `fetchJsonWithTimeout` puts on transport errors. Returns null when the
+ * message doesn't fit (timeout, JSON parse error, etc.).
+ */
+export function statusFromMessage(msg: string): number | null {
+  const m = msg.match(/API (\d+):/);
+  return m ? Number(m[1]) : null;
+}
+
+export type ProbeResult = { ok: true } | { ok: false; status?: number; message: string };
+
+/**
+ * Shared "is this API key usable?" check for both LLM providers. Fires a tiny
+ * `Reply with exactly: OK` request through the provider's own client and maps
+ * the outcome to a uniform ProbeResult.
+ */
+export async function probeKey(
+  call: (
+    prompt: string,
+    opts: { apiKey: string; model: string; maxTokens: number; timeoutMs: number; fetchImpl?: typeof fetch },
+  ) => Promise<{ text: string }>,
+  args: { apiKey: string; model: string; fetchImpl?: typeof fetch },
+): Promise<ProbeResult> {
+  try {
+    const { text } = await call('Reply with exactly: OK', {
+      apiKey: args.apiKey,
+      model: args.model,
+      maxTokens: 10,
+      timeoutMs: 15_000,
+      fetchImpl: args.fetchImpl,
+    });
+    return text.trim().length > 0 ? { ok: true } : { ok: false, message: 'Empty response.' };
+  } catch (e) {
+    const msg = toErrorMessage(e);
+    return { ok: false, status: statusFromMessage(msg) ?? undefined, message: msg };
   }
 }

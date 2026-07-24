@@ -57,7 +57,7 @@ function validatePage(raw: unknown, index: number): WikiPage {
   };
 }
 
-function validateLog(raw: unknown, index: number): SourceLogEntry | null {
+function validateLog(raw: unknown): SourceLogEntry | null {
   if (!raw || typeof raw !== 'object') return null;
   const e = raw as Record<string, unknown>;
   if (typeof e.id !== 'string' || !e.id) return null;
@@ -79,7 +79,6 @@ function validateLog(raw: unknown, index: number): SourceLogEntry | null {
     pagesCreated: typeof e.pagesCreated === 'number' ? e.pagesCreated : undefined,
     error: typeof e.error === 'string' ? e.error : null,
   };
-  void index;
 }
 
 export function parseImport(raw: string): ExportState {
@@ -101,7 +100,7 @@ export function parseImport(raw: string): ExportState {
   }
   const pages = obj.pages.map((p, i) => validatePage(p, i));
   const log: SourceLogEntry[] = Array.isArray(obj.log)
-    ? obj.log.map((e, i) => validateLog(e, i)).filter((x): x is SourceLogEntry => x !== null)
+    ? obj.log.map((e) => validateLog(e)).filter((x): x is SourceLogEntry => x !== null)
     : [];
   return {
     version: 1,
