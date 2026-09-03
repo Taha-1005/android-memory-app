@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { ErrorBanner } from '../../src/components/ErrorBanner';
+import { SuggestionLines } from '../../src/components/SuggestionLines';
 import {
   IngestPrep,
   applyIngestResults,
@@ -19,12 +20,7 @@ import {
   runIngestForLog,
   saveSource,
 } from '../../src/services/ingestPipeline';
-import {
-  getApiKey,
-  getCrossCheckEnabled,
-  getModel,
-  getProvider,
-} from '../../src/secure/apiKey';
+import { getApiKey, getCrossCheckEnabled, loadLLMOpts } from '../../src/secure/apiKey';
 import { runDuplicateCheck } from '../../src/llm/duplicates';
 import { listPages } from '../../src/db/repositories/pages';
 import { getDb } from '../../src/db/client';
@@ -123,18 +119,11 @@ export default function AddScreen(): React.JSX.Element {
       setStatus('processing');
       const prep = await runIngestForLog(entry.id);
       setStatus('checking');
-      const [provider, apiKey, model, allPages] = await Promise.all([
-        getProvider(),
-        getApiKey().then((k) => k ?? ''),
-        getModel(),
-        listPages(getDb()),
-      ]);
+      const [llmOpts, allPages] = await Promise.all([loadLLMOpts(), listPages(getDb())]);
       // Per-candidate checks are independent — fire them concurrently so a
       // 5-page ingest doesn't pay 5× the per-call latency in series.
       const results: DuplicateCheckResult[] = await Promise.all(
-        prep.incoming.map((p) =>
-          runDuplicateCheck(p, allPages, { provider, apiKey, model }),
-        ),
+        prep.incoming.map((p) => runDuplicateCheck(p, allPages, llmOpts)),
       );
       const anyConcern = results.some(
         (r) => r.status === 'duplicate' || r.questions.length > 0 || r.suggestion !== null,
@@ -317,21 +306,10 @@ export default function AddScreen(): React.JSX.Element {
                   {c.suggestion ? (
                     <View style={styles.dupeSuggestion}>
                       <Text style={styles.dupeSuggestionTitle}>Suggested clarifier:</Text>
-                      {c.suggestion.newTitle ? (
-                        <Text style={styles.dupeSuggestionLine}>
-                          title → {c.suggestion.newTitle}
-                        </Text>
-                      ) : null}
-                      {c.suggestion.newBody ? (
-                        <Text style={styles.dupeSuggestionLine}>
-                          body → {c.suggestion.newBody}
-                        </Text>
-                      ) : null}
-                      {c.suggestion.newFacts?.length ? (
-                        <Text style={styles.dupeSuggestionLine}>
-                          facts → {c.suggestion.newFacts.join('; ')}
-                        </Text>
-                      ) : null}
+                      <SuggestionLines
+                        suggestion={c.suggestion}
+                        style={styles.dupeSuggestionLine}
+                      />
                     </View>
                   ) : null}
                   <View style={styles.btnRow}>

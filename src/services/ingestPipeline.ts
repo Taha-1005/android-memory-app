@@ -3,7 +3,7 @@ import { mergePage } from '../domain/mergePage';
 import { slugify } from '../domain/slugify';
 import { runIngest } from '../llm/ingest';
 import { getDb } from '../db/client';
-import { getApiKey, getModel, getProvider } from '../secure/apiKey';
+import { loadLLMOpts } from '../secure/apiKey';
 import { getPage, upsertPage } from '../db/repositories/pages';
 import { getLog, updateLog, insertLog } from '../db/repositories/sourceLog';
 import { nowIso } from '../utils/time';
@@ -55,10 +55,7 @@ export interface IngestDecision {
  */
 export async function runIngestForLog(logId: string): Promise<IngestPrep> {
   const db = getDb();
-  const provider = await getProvider();
-  const apiKey = await getApiKey();
-  if (!apiKey) throw new Error('No API key configured.');
-  const model = await getModel();
+  const llmOpts = await loadLLMOpts();
 
   await updateLog(db, logId, { processing: true, error: null });
 
@@ -73,7 +70,7 @@ export async function runIngestForLog(logId: string): Promise<IngestPrep> {
         content: entry.content,
         url: entry.url,
       },
-      { provider, apiKey, model },
+      llmOpts,
     );
 
     const sourcePage = incoming.find((p) => p.kind === 'source');

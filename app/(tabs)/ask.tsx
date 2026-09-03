@@ -16,7 +16,7 @@ import { getDb } from '../../src/db/client';
 import { listPages } from '../../src/db/repositories/pages';
 import { rankPagesForQuery } from '../../src/domain/rankPages';
 import { runQuery } from '../../src/llm/query';
-import { getApiKey, getModel, getProvider } from '../../src/secure/apiKey';
+import { loadLLMOpts } from '../../src/secure/apiKey';
 import { QueryResult } from '../../src/domain/types';
 import { fileAnswerAsPage } from '../../src/services/ingestPipeline';
 import { slugify } from '../../src/domain/slugify';
@@ -44,10 +44,7 @@ export default function AskScreen(): React.JSX.Element {
     setFiledSlug(null);
     setLoading(true);
     try {
-      const apiKey = await getApiKey();
-      if (!apiKey) throw new Error('Add your API key in Settings first.');
-      const provider = await getProvider();
-      const model = await getModel();
+      const llmOpts = await loadLLMOpts('Add your API key in Settings first.');
       const db = getDb();
       const all = await listPages(db);
       const top = rankPagesForQuery(q, all, 8);
@@ -60,7 +57,7 @@ export default function AskScreen(): React.JSX.Element {
         });
         return;
       }
-      const res = await runQuery(q, top, { provider, apiKey, model });
+      const res = await runQuery(q, top, llmOpts);
       setResult(res);
       setFileTitle(q.replace(/\?+$/, '').trim());
     } catch (e) {

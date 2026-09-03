@@ -55,6 +55,7 @@ import { planRename } from '../src/domain/renamePage';
 import { useTheme } from '../src/theme/ThemeContext';
 import type { ThemeColors, ThemePreference } from '../src/theme/theme';
 import { UpdatesPanel } from '../src/components/UpdatesPanel';
+import { SuggestionLines } from '../src/components/SuggestionLines';
 import { toErrorMessage } from '../src/utils/errors';
 
 const APPEARANCE_LABEL: Record<ThemePreference, string> = {
@@ -99,6 +100,23 @@ export default function SettingsScreen(): React.JSX.Element {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  /** Drop a resolved/ignored group from the scan report. */
+  const dropGroup = (group: DuplicateGroup) => {
+    setScanReport((prev) =>
+      prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
+    );
+  };
+
+  /**
+   * Guard for the AI actions. Returns the key, or sets the error and returns
+   * null so the caller can bail.
+   */
+  const requireKey = (action: string): string | null => {
+    if (key) return key;
+    setError(`API key required for ${PROVIDER_LABEL[provider]} to ${action}.`);
+    return null;
+  };
 
   const onSwitchProvider = async (p: Provider) => {
     if (p === provider) return;
@@ -183,13 +201,11 @@ export default function SettingsScreen(): React.JSX.Element {
   const onAiScan = async () => {
     setError(null);
     setStatus(null);
-    if (!key) {
-      setError(`API key required for ${PROVIDER_LABEL[provider]} to scan for duplicates.`);
-      return;
-    }
+    const apiKey = requireKey('scan for duplicates');
+    if (!apiKey) return;
     setScanBusy(true);
     try {
-      const report = await runDuplicateScan(pages, { provider, apiKey: key, model });
+      const report = await runDuplicateScan(pages, { provider, apiKey, model });
       setScanReport(report);
       setChatHistory([]);
       setStatus(
@@ -205,10 +221,8 @@ export default function SettingsScreen(): React.JSX.Element {
   };
 
   const onMergeGroup = async (group: DuplicateGroup) => {
-    if (!key) {
-      setError(`API key required for ${PROVIDER_LABEL[provider]} to run merge.`);
-      return;
-    }
+    const apiKey = requireKey('run merge');
+    if (!apiKey) return;
     const db = getDb();
     // Resolve the group's pages concurrently — each getPage is an independent
     // round-trip; the previous serial loop paid N× latency for nothing.
@@ -222,7 +236,7 @@ export default function SettingsScreen(): React.JSX.Element {
     try {
       let current: WikiPage = resolved[0];
       for (let i = 1; i < resolved.length; i++) {
-        const incoming = await runMerge(current, resolved[i], { provider, apiKey: key, model });
+        const incoming = await runMerge(current, resolved[i], { provider, apiKey, model });
         const existing = await getPage(db, slugify(incoming.title));
         current = mergePage(existing, incoming, null);
         await upsertPage(db, current);
@@ -231,9 +245,7 @@ export default function SettingsScreen(): React.JSX.Element {
         if (p.slug !== current.slug) await deletePage(db, p.slug);
       }
       setStatus(`Merged ${resolved.length} pages into ${current.title}.`);
-      setScanReport((prev) =>
-        prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
-      );
+      dropGroup(group);
       await refresh();
     } catch (e) {
       setError(toErrorMessage(e));
@@ -276,9 +288,7 @@ export default function SettingsScreen(): React.JSX.Element {
         }
       }
       setStatus(`Applied disambiguation to ${applied} page${applied === 1 ? '' : 's'}.`);
-      setScanReport((prev) =>
-        prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
-      );
+      dropGroup(group);
       await refresh();
     } catch (e) {
       setError(toErrorMessage(e));
@@ -287,19 +297,11 @@ export default function SettingsScreen(): React.JSX.Element {
     }
   };
 
-  const onIgnoreGroup = (group: DuplicateGroup) => {
-    setScanReport((prev) =>
-      prev ? { ...prev, groups: prev.groups.filter((g) => g !== group) } : prev,
-    );
-  };
-
   const onSendChat = async () => {
     const trimmed = chatInput.trim();
     if (!trimmed || !scanReport) return;
-    if (!key) {
-      setError(`API key required for ${PROVIDER_LABEL[provider]}.`);
-      return;
-    }
+    const apiKey = requireKey('discuss the plan');
+    if (!apiKey) return;
     setChatBusy(true);
     setChatInput('');
     // Compress the PRIOR history (without the new user turn), then append the
@@ -307,18 +309,14 @@ export default function SettingsScreen(): React.JSX.Element {
     // in the transcript AND in any summary that compression produced.
     const userTurn: ChatTurn = { role: 'user', content: trimmed };
     try {
-      const compressed = await maybeCompressHistory(chatHistory, {
-        provider,
-        apiKey: key,
-        model,
-      });
+      const compressed = await maybeCompressHistory(chatHistory, { provider, apiKey, model });
       const historyForCall: ChatTurn[] = [...compressed, userTurn];
       setChatHistory(historyForCall);
       const res = await runDuplicateChat({
         report: scanReport,
         pages,
         history: historyForCall,
-        opts: { provider, apiKey: key, model },
+        opts: { provider, apiKey, model },
       });
       const replyTurn: ChatTurn = { role: 'assistant', content: res.reply };
       setChatHistory([...historyForCall, replyTurn]);
@@ -527,7 +525,7 @@ export default function SettingsScreen(): React.JSX.Element {
                 group={g}
                 onMerge={() => onMergeGroup(g)}
                 onApply={() => onApplyDisambiguation(g)}
-                onIgnore={() => onIgnoreGroup(g)}
+                onIgnore={() => dropGroup(g)}
               />
             ))
           )}
@@ -648,17 +646,7 @@ function DupGroupCard({
       {group.suggestions.map((sug) => (
         <View key={sug.slug} style={styles.dupSuggestion}>
           <Text style={styles.dupSuggestionTitle}>{sug.slug}</Text>
-          {sug.newTitle ? (
-            <Text style={styles.dupSuggestionLine}>title → {sug.newTitle}</Text>
-          ) : null}
-          {sug.newBody ? (
-            <Text style={styles.dupSuggestionLine}>body → {sug.newBody}</Text>
-          ) : null}
-          {sug.newFacts?.length ? (
-            <Text style={styles.dupSuggestionLine}>
-              facts → {sug.newFacts.join('; ')}
-            </Text>
-          ) : null}
+          <SuggestionLines suggestion={sug} style={styles.dupSuggestionLine} />
         </View>
       ))}
       <View style={styles.btnRow}>
