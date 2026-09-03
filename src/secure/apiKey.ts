@@ -99,6 +99,29 @@ export async function setModel(model: string): Promise<void> {
   await setModelFor(await getProvider(), model);
 }
 
+/**
+ * Load the `{ provider, apiKey, model }` triple every LLM call site needs.
+ *
+ * Resolves the provider once and then reads key + model in parallel — calling
+ * `getApiKey()`/`getModel()` separately re-reads the provider for each, and
+ * two of the three call sites awaited them serially.
+ *
+ * Throws when no key is configured, so callers don't each hand-roll that check.
+ * `missingKeyMessage` lets user-facing screens surface a friendlier prompt.
+ */
+export async function loadLLMOpts(
+  missingKeyMessage = 'No API key configured.',
+): Promise<{
+  provider: Provider;
+  apiKey: string;
+  model: string;
+}> {
+  const provider = await getProvider();
+  const [apiKey, model] = await Promise.all([getApiKeyFor(provider), getModelFor(provider)]);
+  if (!apiKey) throw new Error(missingKeyMessage);
+  return { provider, apiKey, model };
+}
+
 export async function getCrossCheckEnabled(): Promise<boolean> {
   const s = await store();
   const v = await s.getItemAsync(CROSS_CHECK_NAME);
